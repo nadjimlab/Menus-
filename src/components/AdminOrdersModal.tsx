@@ -11,6 +11,7 @@ import { AdminProductManager } from './AdminProductManager';
 import { CaissePOS } from './CaissePOS';
 import { ManagerDashboard } from './ManagerDashboard';
 import { soundFx } from '../utils/soundEffects';
+import { supabase } from '../lib/supabase';
 import {
   X,
   Clock,
@@ -55,19 +56,12 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
   const { isRTL } = useLanguage();
 
   // Authentication State for Restaurant Staff
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('cheneb_admin_auth') === 'true';
-    }
-    return false;
-  });
-  const [isManagerMode, setIsManagerMode] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('cheneb_admin_mode') === 'manager';
-    }
-    return false;
-  });
-  const [pinInput, setPinInput] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isManagerMode, setIsManagerMode] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginErrorMessage, setLoginErrorMessage] = useState('');
   const [pinError, setPinError] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'orders' | 'caisse' | 'products' | 'qrcodes' | 'settings'>('orders');
@@ -87,74 +81,55 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
   });
   const [savedSettingsSuccess, setSavedSettingsSuccess] = useState(false);
 
-  const { setIsManagerAuthenticated, managerPin, staffPin } = useManager();
+  const { setIsManagerAuthenticated } = useManager();
 
-  const validateAndLogin = (pin: string) => {
-    if (pin === managerPin || pin === '9999') {
-      setIsAuthenticated(true);
-      setIsManagerMode(true);
-      setIsManagerAuthenticated(true);
-      sessionStorage.setItem('cheneb_admin_auth', 'true');
-      sessionStorage.setItem('cheneb_admin_mode', 'manager');
-      setPinError(false);
-      setPinInput('');
-      return true;
-    } else if (pin === staffPin || pin === '1234') {
-      setIsAuthenticated(true);
-      setIsManagerMode(false);
-      sessionStorage.setItem('cheneb_admin_auth', 'true');
-      sessionStorage.setItem('cheneb_admin_mode', 'staff');
-      setPinError(false);
-      setPinInput('');
-      return true;
-    }
-    setPinError(true);
-    return false;
-  };
-
-  const handlePinSubmit = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!validateAndLogin(pinInput)) {
-      setPinInput('');
-    }
-  };
-
-  // Listen for physical keyboard typing when PIN prompt is active
   useEffect(() => {
-    if (isAuthenticated || !isOpen) return;
+    if (!supabase) return;
+    void supabase.auth.getSession().then(({ data }) => {
+      const role = data.session?.user.app_metadata?.role;
+      setIsAuthenticated(Boolean(data.session));
+      setIsManagerMode(role === 'manager');
+      setIsManagerAuthenticated(role === 'manager');
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      const role = session?.user.app_metadata?.role;
+      setIsAuthenticated(Boolean(session));
+      setIsManagerMode(role === 'manager');
+      setIsManagerAuthenticated(role === 'manager');
+    });
+    return () => listener.subscription.unsubscribe();
+  }, [setIsManagerAuthenticated]);
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key >= '0' && e.key <= '9') {
-        if (pinInput.length < 4) {
-          const next = pinInput + e.key;
-          setPinInput(next);
-          setPinError(false);
-          if (next.length === 4) {
-            if (!validateAndLogin(next)) {
-              setTimeout(() => setPinInput(''), 600);
-            }
-          }
-        }
-      } else if (e.key === 'Backspace') {
-        setPinInput((prev) => prev.slice(0, -1));
-        setPinError(false);
-      } else if (e.key === 'Enter') {
-        handlePinSubmit();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isAuthenticated, isOpen, pinInput, managerPin, staffPin]);
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase) {
+      setLoginErrorMessage(isRTL ? 'Supabase Auth غير مهيأ في إعدادات الموقع' : 'Supabase Auth n’est pas configuré');
+      return;
+    }
+    setLoginLoading(true);
+    setLoginErrorMessage('');
+    const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail.trim(), password: loginPassword });
+    setLoginLoading(false);
+    if (error || !data.user) {
+      setLoginErrorMessage(isRTL ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Email ou mot de passe incorrect');
+      return;
+    }
+    const role = data.user.app_metadata?.role;
+    if (role !== 'manager' && role !== 'cashier') {
+      await supabase.auth.signOut();
+      setLoginErrorMessage(isRTL ? 'هذا الحساب ليس حساب موظف مصرح' : 'Ce compte n’est pas autorisé pour le personnel');
+      return;
+    }
+    setIsAuthenticated(true);
+    setIsManagerMode(role === 'manager');
+    setIsManagerAuthenticated(role === 'manager');
+  };
 
   const handleLogout = () => {
+    void supabase?.auth.signOut();
     setIsAuthenticated(false);
     setIsManagerMode(false);
     setIsManagerAuthenticated(false);
-    sessionStorage.removeItem('cheneb_admin_auth');
-    sessionStorage.removeItem('cheneb_admin_mode');
-    setPinInput('');
-    setPinError(false);
   };
 
   if (!isOpen) return null;
@@ -234,98 +209,28 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
   if (!isAuthenticated) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className="relative w-full max-w-md bg-[#0A0A0B] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-200"
-        >
-          <button
-            onClick={onClose}
-            aria-label="Fermer"
-            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#1A1A1C] hover:bg-[#252527] text-gray-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
-          >
+        <div onClick={(e) => e.stopPropagation()} className="relative w-full max-w-md bg-[#0A0A0B] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl text-center">
+          <button onClick={onClose} aria-label="Fermer" className="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#1A1A1C] text-gray-300 flex items-center justify-center cursor-pointer">
             <X className="w-4 h-4" />
           </button>
-
-          <div className="w-16 h-16 rounded-3xl bg-[#FF6321]/15 border border-[#FF6321]/30 flex items-center justify-center text-[#FF6321] mb-4 shadow-[0_0_25px_rgba(255,99,33,0.2)]">
+          <div className="w-16 h-16 rounded-3xl bg-[#FF6321]/15 border border-[#FF6321]/30 flex items-center justify-center text-[#FF6321] mx-auto mb-4">
             <Lock className="w-8 h-8" />
           </div>
-
           <h3 className="text-lg sm:text-xl font-black uppercase text-white font-heading mb-1">
-            {isRTL ? 'فضاء الإدارة ومطبخ المطعم' : 'Espace Équipe & Cuisine'}
+            {isRTL ? 'دخول طاقم المطعم' : 'Connexion équipe'}
           </h3>
-          <p className="text-xs text-gray-400 max-w-xs mb-6">
-            {isRTL
-              ? 'هذا القسم محمي وخاص بطاقم شنب طاكوس فقط. يرجى إدخال رمز الأمان (PIN) للمتابعة.'
-              : 'Cet espace est strictement réservé au personnel de CHENEB TACOS. Veuillez saisir votre code PIN.'}
+          <p className="text-xs text-gray-400 max-w-xs mx-auto mb-6">
+            {isRTL ? 'استخدم حساب Supabase Auth الخاص بالمدير أو الكاشير.' : 'Utilisez le compte Supabase Auth du manager ou du caissier.'}
           </p>
-
-          <form onSubmit={handlePinSubmit} className="w-full space-y-4">
-            <div className="flex justify-center gap-3 mb-2">
-              {[0, 1, 2, 3].map((idx) => {
-                const filled = pinInput.length > idx;
-                return (
-                  <div
-                    key={idx}
-                    className={`w-12 h-14 rounded-2xl border flex items-center justify-center text-2xl font-black font-mono transition-all ${
-                      pinError
-                        ? 'border-red-500 bg-red-950/30 text-red-400 animate-shake'
-                        : filled
-                        ? 'border-[#FF6321] bg-[#FF6321]/10 text-white shadow-[0_0_12px_rgba(255,99,33,0.25)]'
-                        : 'border-white/10 bg-[#141416] text-gray-600'
-                    }`}
-                  >
-                    {filled ? '•' : ''}
-                  </div>
-                );
-              })}
-            </div>
-
-            {pinError && (
-              <p className="text-xs text-red-400 font-bold flex items-center justify-center gap-1.5 animate-shake">
-                <ShieldAlert className="w-3.5 h-3.5" />
-                <span>{isRTL ? 'رمز المرور غير صحيح • خاص بالإدارة فقط' : 'Code PIN incorrect • Accès réservé'}</span>
-              </p>
-            )}
-
-            {/* Numeric Keypad */}
-            <div className="grid grid-cols-3 gap-2.5 pt-2 max-w-[280px] mx-auto">
-              {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', 'OK'].map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => {
-                    if (key === 'C') {
-                      setPinInput('');
-                      setPinError(false);
-                    } else if (key === 'OK') {
-                      handlePinSubmit();
-                    } else {
-                      if (pinInput.length < 4) {
-                        const next = pinInput + key;
-                        setPinInput(next);
-                        setPinError(false);
-                        if (next.length === 4) {
-                          if (!validateAndLogin(next)) setTimeout(() => setPinInput(''), 600);
-                        }
-                      }
-                    }
-                  }}
-                  className={`h-12 rounded-2xl font-black text-sm flex items-center justify-center transition-all active:scale-95 cursor-pointer ${
-                    key === 'OK'
-                      ? 'bg-[#FF6321] text-black hover:bg-[#ff773d]'
-                      : key === 'C'
-                      ? 'bg-[#1A1A1C] text-gray-400 hover:text-white'
-                      : 'bg-[#141416] border border-white/5 text-white hover:bg-[#1A1A1C] hover:border-white/15'
-                  }`}
-                >
-                  {key === 'OK' ? (isRTL ? 'دخول' : 'Valider') : key === 'C' ? (isRTL ? 'مسح' : 'Effacer') : key}
-                </button>
-              ))}
-            </div>
-
-            <p className="text-[11px] text-gray-500 pt-3">
-              {isRTL ? 'رمز الأمان الافتراضي لطاقم المطعم: 1234' : 'Code PIN par défaut du personnel : 1234'}
-            </p>
+          <form onSubmit={handleAuthSubmit} className="w-full space-y-3 text-start">
+            <label className="block text-xs font-bold text-gray-300">Email</label>
+            <input type="email" required autoComplete="username" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-white outline-none focus:border-[#FF6321]" placeholder="staff@chenebtacos.dz" />
+            <label className="block text-xs font-bold text-gray-300">{isRTL ? 'كلمة المرور' : 'Mot de passe'}</label>
+            <input type="password" required autoComplete="current-password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-white outline-none focus:border-[#FF6321]" placeholder="••••••••" />
+            {loginErrorMessage && <p className="text-xs text-red-400 font-bold">{loginErrorMessage}</p>}
+            <button type="submit" disabled={loginLoading} className="w-full py-3 rounded-xl bg-[#FF6321] disabled:opacity-50 text-black font-black cursor-pointer">
+              {loginLoading ? (isRTL ? 'جارٍ التحقق...' : 'Vérification...') : (isRTL ? 'دخول آمن' : 'Connexion sécurisée')}
+            </button>
           </form>
         </div>
       </div>

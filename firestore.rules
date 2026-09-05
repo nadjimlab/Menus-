@@ -1,8 +1,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Firestore is no longer the application source of truth.
+    // Keep it closed until Firebase Authentication rules are intentionally configured.
     match /orders/{orderId} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

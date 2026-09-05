@@ -47,7 +47,7 @@ const API_ORDERS_URL = '/api/orders';
 // Keep the kitchen empty until a real customer or cashier creates an order.
 const INITIAL_DEMO_ORDERS: PlacedOrder[] = [];
 
-const orderToSupabaseRow = (order: PlacedOrder) => ({
+const orderToSupabaseRow = (order: PlacedOrder, customerUserId?: string) => ({
   id: order.id,
   created_at: order.createdAt,
   customer_info: order.customerInfo,
@@ -65,6 +65,7 @@ const orderToSupabaseRow = (order: PlacedOrder) => ({
   status_updated_at: order.statusUpdatedAt ?? null,
   source: order.source,
   notes: order.customerInfo.notes ?? null,
+  customer_user_id: customerUserId ?? null,
 });
 
 const supabaseRowToOrder = (row: Record<string, any>): PlacedOrder => ({
@@ -88,7 +89,8 @@ const supabaseRowToOrder = (row: Record<string, any>): PlacedOrder => ({
 
 const saveOrderToSupabase = async (order: PlacedOrder) => {
   if (!supabase) return false;
-  const { error } = await supabase.from('orders').upsert(orderToSupabaseRow(order));
+  const { data: sessionData } = await supabase.auth.getSession();
+  const { error } = await supabase.from('orders').upsert(orderToSupabaseRow(order, sessionData.session?.user.id));
   if (error) {
     console.error('Supabase order write failed:', error.message);
     return false;
@@ -196,6 +198,11 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (supabase) {
       let active = true;
       const loadOrders = async () => {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session) {
+          const { error: authError } = await supabase.auth.signInAnonymously();
+          if (authError) console.error('Anonymous customer auth failed:', authError.message);
+        }
         const { data, error } = await supabase
           .from('orders')
           .select('*')
@@ -216,6 +223,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
       };
       void loadOrders();
+      const { data: authListener } = supabase.auth.onAuthStateChange(() => void loadOrders());
       const refreshTimer = window.setInterval(() => void loadOrders(), 5000);
       const channel = supabase
         .channel('orders-live')
@@ -241,6 +249,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         });
       return () => {
         active = false;
+        authListener.subscription.unsubscribe();
         window.clearInterval(refreshTimer);
         void supabase.removeChannel(channel);
       };

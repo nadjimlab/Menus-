@@ -172,6 +172,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [isOrderTrackerOpen, setIsOrderTrackerOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const pendingSupabaseOrderIds = useRef(new Set<string>());
+  const previousActiveStatus = useRef<OrderStatus | null>(null);
 
   // Sync orders to localStorage
   useEffect(() => {
@@ -355,7 +356,10 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setActiveCustomerOrderId(orderId);
     if (supabase) pendingSupabaseOrderIds.current.add(orderId);
 
-    // Play chime
+    // Ask for browser notifications after the customer explicitly places an order.
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      void Notification.requestPermission().catch(() => {});
+    }
     soundFx.playNewOrderNotification();
 
     // Supabase is the shared cross-device source when configured.
@@ -505,23 +509,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
     void syncOrderPatchToApi(orderId, { status, statusUpdatedAt: new Date().toISOString() });
 
-    // If status is ready and matches current active customer, play sound + confetti
-    if (orderId === activeCustomerOrderId) {
-      if (status === 'ready') {
-        soundFx.playOrderReadyCelebration();
-        try {
-          confetti({
-            particleCount: 100,
-            spread: 80,
-            origin: { y: 0.6 },
-          });
-        } catch {
-          // ignore
-        }
-      } else if (status === 'preparing') {
-        soundFx.playNewOrderNotification();
-      }
-    }
+
   };
 
   const deleteOrder = (orderId: string) => {
@@ -554,6 +542,35 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const activeCustomerOrder = orders.find((o) => o.id === activeCustomerOrderId);
+
+  useEffect(() => {
+    const currentStatus = activeCustomerOrder?.status ?? null;
+    const previousStatus = previousActiveStatus.current;
+    if (currentStatus && previousStatus && currentStatus !== previousStatus) {
+      const titles: Record<OrderStatus, { ar: string; fr: string }> = {
+        received: { ar: 'تم قبول طلبك', fr: 'Commande acceptée' },
+        preparing: { ar: 'بدأ تحضير طلبك', fr: 'Préparation commencée' },
+        ready: { ar: 'طلبك جاهز الآن', fr: 'Commande prête' },
+        completed: { ar: 'تم إنهاء وتسليم طلبك', fr: 'Commande terminée' },
+        cancelled: { ar: 'تم إلغاء طلبك', fr: 'Commande annulée' },
+      };
+      const title = titles[currentStatus];
+      setIsOrderTrackerOpen(true);
+      if (currentStatus === 'ready') soundFx.playOrderReadyCelebration();
+      else soundFx.playNewOrderNotification();
+      if (currentStatus === 'ready') {
+        try {
+          confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
+        } catch {
+          // Ignore animation failures.
+        }
+      }
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification(title.fr, { body: title.ar, tag: `order-${activeCustomerOrder.id}-${currentStatus}` });
+      }
+    }
+    previousActiveStatus.current = currentStatus;
+  }, [activeCustomerOrder?.id, activeCustomerOrder?.status]);
 
   // Never expose a previous table's order when the same device scans a new table QR.
   useEffect(() => {

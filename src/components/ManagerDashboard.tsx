@@ -7,6 +7,7 @@ import { soundFx } from '../utils/soundEffects';
 import { supabase } from '../lib/supabase';
 import { MustacheIcon } from './MustacheLogo';
 import { StaffAccessManager } from './StaffAccessManager';
+import { TableStandCard } from './TableStandCard';
 import {
   DollarSign,
   TrendingUp,
@@ -36,6 +37,7 @@ import {
   FileSpreadsheet,
   X,
   Sparkles,
+  QrCode,
 } from 'lucide-react';
 import {
   ExpenseRecord,
@@ -80,7 +82,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerAuth 
   const { isRTL, toggleLanguage } = useLanguage();
 
   // Navigation subtabs
-  const [activeTab, setActiveTab] = useState<'finance' | 'expenses' | 'employees' | 'attendance' | 'security' | 'staff'>('finance');
+  const [activeTab, setActiveTab] = useState<'finance' | 'expenses' | 'employees' | 'attendance' | 'security' | 'staff' | 'qrcodes'>('finance');
 
   // PIN input state for Manager Lock
   const [pinInput, setPinInput] = useState('');
@@ -132,6 +134,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerAuth 
   const [selectedAttendanceDate, setSelectedAttendanceDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
+  const [selectedTableNumber, setSelectedTableNumber] = useState(1);
 
   // Financial Calculations
   const todayOrders = useMemo(() => {
@@ -547,6 +550,17 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerAuth 
           >
             <UserPlus className="w-3.5 h-3.5" />
             <span>{isRTL ? 'حسابات العمال' : 'Accès équipe'}</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('qrcodes')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'qrcodes'
+                ? 'bg-amber-500 text-black shadow-md'
+                : 'text-gray-300 hover:text-white'
+            }`}
+          >
+            <QrCode className="w-3.5 h-3.5" />
+            <span>{isRTL ? 'QR الطاولات' : 'QR Tables'}</span>
           </button>
           <button
             onClick={() => setActiveTab('security')}
@@ -1448,6 +1462,23 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerAuth 
         {/* ========================================================================= */}
         {activeTab === 'staff' && managerAuth && (
           <StaffAccessManager managerName={managerAuth.name} managerPin={managerAuth.pin} isRTL={isRTL} />
+        )}
+        {/* ========================================================================= */}
+        {/* SUBTAB 6: TABLE QR CODES */}
+        {/* ========================================================================= */}
+        {activeTab === 'qrcodes' && (
+          <div className="space-y-5 max-w-4xl mx-auto">
+            <div className="p-5 rounded-3xl bg-[#141416] border border-white/5 text-center">
+              <div className="flex items-center justify-center gap-2 mb-2"><QrCode className="w-5 h-5 text-amber-400" /><h4 className="text-base font-black text-white">{isRTL ? 'رموز QR للطاولات' : 'QR Codes des tables'}</h4></div>
+              <p className="text-xs text-gray-400">{isRTL ? 'ولّد بطاقة QR قابلة للطباعة لكل طاولة، ليفتح الزبون القائمة ويطلب مباشرة.' : 'Générez une carte QR imprimable pour chaque table.'}</p>
+            </div>
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              {Array.from({ length: 15 }, (_, index) => index + 1).map((number) => (
+                <button key={number} onClick={() => setSelectedTableNumber(number)} className={`w-10 h-10 rounded-xl text-xs font-black cursor-pointer ${selectedTableNumber === number ? 'bg-amber-500 text-black' : 'bg-[#1A1A1D] text-gray-300 border border-white/5'}`}>T{number}</button>
+              ))}
+            </div>
+            <div className="flex justify-center"><TableStandCard tableNumber={selectedTableNumber} /></div>
+          </div>
         )}
         {/* ========================================================================= */}
         {/* SUBTAB 6: PIN & SECURITY */}

@@ -19,8 +19,9 @@ export const CashierPinLogin: React.FC<CashierPinLoginProps> = ({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!employeeName.trim()) {
-      setError('اكتب اسم العامل');
+    const normalizedEmployeeName = employeeName.trim().replace(/\s+/g, ' ');
+    if (!normalizedEmployeeName) {
+      setError('اكتب اسم العامل أو رمز الموظف');
       return;
     }
 
@@ -42,7 +43,7 @@ export const CashierPinLogin: React.FC<CashierPinLoginProps> = ({
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
           body: JSON.stringify({
-            employeeName: employeeName.trim(),
+            employeeName: normalizedEmployeeName,
             pin,
           }),
         }

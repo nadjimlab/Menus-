@@ -152,8 +152,9 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
     e.preventDefault();
     setLoginErrorMessage('');
 
-    if (!cashierName.trim() || !/^\d{4}$/.test(cashierCode)) {
-      setLoginErrorMessage(isRTL ? 'أدخل الاسم ورمزًا من 4 أرقام' : 'Saisissez le nom et un code de 4 chiffres');
+    const normalizedCashierName = cashierName.trim().replace(/\s+/g, ' ');
+    if (!normalizedCashierName || !/^\d{4}$/.test(cashierCode)) {
+      setLoginErrorMessage(isRTL ? 'أدخل الاسم أو رمز الموظف وPIN من 4 أرقام' : 'Saisissez le nom/code employé et un PIN de 4 chiffres');
       return;
     }
 
@@ -174,7 +175,7 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
           Authorization: `Bearer ${publishableKey}`,
         },
         body: JSON.stringify({
-          employeeName: cashierName.trim(),
+          employeeName: normalizedCashierName,
           pin: cashierCode,
         }),
       });

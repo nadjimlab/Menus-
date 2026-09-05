@@ -60,12 +60,19 @@ language sql
 security definer
 set search_path = public, extensions
 as $$
-  select id, full_name, employee_code, staff_role
-  from public.staff_accounts
-  where is_active
-    and lower(trim(full_name)) = lower(trim(p_employee_name))
+  with input_values as (
+    select regexp_replace(lower(trim(coalesce(p_employee_name, ''))), '[[:space:]]+', ' ', 'g') as login_value
+  )
+  select s.id, s.full_name, s.employee_code, s.staff_role
+  from public.staff_accounts s
+  cross join input_values i
+  where s.is_active
+    and (
+      regexp_replace(lower(trim(s.full_name)), '[[:space:]]+', ' ', 'g') = i.login_value
+      or lower(trim(s.employee_code)) = i.login_value
+    )
     and p_pin ~ '^[0-9]{4}$'
-    and pin_hash = crypt(p_pin, pin_hash)
+    and s.pin_hash = crypt(p_pin, s.pin_hash)
   limit 1;
 $$;
 

@@ -41,6 +41,13 @@ create trigger staff_accounts_updated_at
 before update on public.staff_accounts
 for each row execute function public.staff_accounts_set_updated_at();
 
+-- Drop only the function definitions, not the staff table or its data.
+-- PostgreSQL requires this when OUT/RETURNS TABLE columns change.
+drop function if exists public.verify_cashier_pin(text, text);
+drop function if exists public.list_staff_accounts();
+drop function if exists public.create_staff_account(text, text, text, text);
+drop function if exists public.set_staff_account_active(uuid, boolean);
+
 -- Initial login RPC. The PIN is compared against a bcrypt hash and is never returned.
 create or replace function public.verify_cashier_pin(p_employee_name text, p_pin text)
 returns table (

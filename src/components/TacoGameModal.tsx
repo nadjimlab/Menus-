@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useOrders } from '../context/OrderContext';
 import { useLanguage } from '../context/LanguageContext';
 import { soundFx } from '../utils/soundEffects';
-import { MustacheLogo } from './MustacheLogo';
+import { MustacheIcon } from './MustacheLogo';
 import { X, Play, RotateCcw, Trophy, Sparkles, Heart } from 'lucide-react';
 
 interface GameItem {
@@ -191,7 +191,7 @@ export const TacoGameModal: React.FC = () => {
         <div className="p-4 border-b border-white/5 bg-[#141416] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-[0_0_10px_rgba(147,51,234,0.4)]">
-              <MustacheLogo className="w-4 h-2 text-white" />
+              <MustacheIcon className="w-4 h-2 text-white" />
             </div>
             <div>
               <h3 className="text-sm sm:text-base font-black text-white font-heading">
@@ -269,7 +269,7 @@ export const TacoGameModal: React.FC = () => {
             }}
             className="absolute bottom-5 w-24 h-12 bg-linear-to-r from-[#FF6321] to-amber-500 rounded-2xl flex flex-col items-center justify-center shadow-[0_4px_20px_rgba(255,99,33,0.5)] border-2 border-white/40 pointer-events-none transition-all duration-75"
           >
-            <MustacheLogo className="w-8 h-3 text-black" />
+            <MustacheIcon className="w-8 h-3 text-black" />
             <span className="text-[9px] font-black uppercase text-black tracking-widest mt-0.5">
               CHENEB
             </span>
@@ -279,7 +279,7 @@ export const TacoGameModal: React.FC = () => {
           {!isPlaying && !isGameOver && (
             <div className="absolute inset-0 bg-black/75 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center z-20">
               <div className="w-14 h-14 rounded-2xl bg-[#FF6321] text-black flex items-center justify-center mb-3 shadow-[0_0_20px_rgba(255,99,33,0.5)]">
-                <MustacheLogo className="w-9 h-4 text-black" />
+                <MustacheIcon className="w-9 h-4 text-black" />
               </div>
               <h4 className="text-xl font-black text-white font-heading">
                 {isRTL ? 'تحدي صياد التاكوس !' : 'Défi Cheneb Tacos !'}

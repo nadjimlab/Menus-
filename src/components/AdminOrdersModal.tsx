@@ -5,7 +5,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useProducts } from '../context/ProductsContext';
 import { PlacedOrder, OrderStatus } from '../types';
 import { TableStandCard } from './TableStandCard';
-import { MustacheLogo } from './MustacheLogo';
+import { MustacheIcon } from './MustacheLogo';
 import { AdminProductManager } from './AdminProductManager';
 import { CaissePOS } from './CaissePOS';
 import { soundFx } from '../utils/soundEffects';
@@ -321,7 +321,7 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
         <div className="p-3 sm:p-4 border-b border-white/5 bg-[#0F0F10] flex flex-wrap items-center justify-between gap-2.5 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#FF6321] text-black font-black flex items-center justify-center shadow-[0_0_15px_rgba(255,99,33,0.3)] shrink-0">
-              <MustacheLogo className="w-6 h-3 text-black" />
+              <MustacheIcon className="w-6 h-3 text-black" />
             </div>
             <div>
               <div className="flex items-center gap-2">

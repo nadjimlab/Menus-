@@ -13,6 +13,9 @@ import {
   Gamepad2,
   UtensilsCrossed,
   Sparkles,
+  ShieldCheck,
+  Lock,
+  ShoppingBag,
 } from 'lucide-react';
 
 export const OrderTrackerModal: React.FC = () => {
@@ -25,7 +28,66 @@ export const OrderTrackerModal: React.FC = () => {
   const { config } = useConfig();
   const { isRTL } = useLanguage();
 
-  if (!isOrderTrackerOpen || !activeCustomerOrder) return null;
+  if (!isOrderTrackerOpen) return null;
+
+  // If customer has no active order: show strict privacy guarantee screen
+  if (!activeCustomerOrder) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="relative w-full max-w-md bg-[#0F0F10] border border-white/10 rounded-3xl shadow-2xl p-6 sm:p-7 text-center overflow-hidden animate-in zoom-in-95 duration-200"
+        >
+          {/* Close button */}
+          <button
+            onClick={() => setIsOrderTrackerOpen(false)}
+            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
+          <div className="w-16 h-16 rounded-3xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto mb-4 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+            <BellRing className="w-8 h-8" />
+          </div>
+
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 text-[11px] font-bold mb-3">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>{isRTL ? 'حماية تامة للخصوصية' : 'Confidentialité Garantie'}</span>
+          </div>
+
+          <h3 className="text-lg sm:text-xl font-black text-white font-heading mb-2">
+            {isRTL ? 'مركز إشعارات وتتبع الطلبات' : 'Centre de Suivi des Commandes'}
+          </h3>
+
+          <p className="text-xs text-gray-300 leading-relaxed mb-6">
+            {isRTL
+              ? 'لا توجد أي طلبيات جارية خاصة بك حالياً على هذا الجهاز. لحماية خصوصية وسرية الزبائن، لا يقوم نظامنا بإظهار طلبيات الآخرين مطلقاً.'
+              : 'Aucune commande active enregistrée sur cet appareil. Pour préserver la stricte confidentialité des clients, seules vos propres commandes s\'affichent ici.'}
+          </p>
+
+          <div className="p-3.5 rounded-2xl bg-[#18181A] border border-white/5 text-start space-y-2 mb-6">
+            <div className="flex items-center gap-2 text-xs font-bold text-gray-200">
+              <Lock className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{isRTL ? 'كيف يعمل جرس الإشعار؟' : 'Comment ça fonctionne ?'}</span>
+            </div>
+            <p className="text-[11px] text-gray-400 leading-relaxed">
+              {isRTL
+                ? 'بمجرد أن تؤكد طلبك (سواء من طاولتك برمز QR أو أونلاين)، سيظهر طلبك هنا وحده، وسيرن جرس التنبيه مع إشعار فوري على شاشتك عند جهوزية الوجبة.'
+                : 'Dès validation de votre commande (à table ou en ligne), elle apparaîtra ici avec une alerte sonore et visuelle dès qu\'elle sera prête.'}
+            </p>
+          </div>
+
+          <button
+            onClick={() => setIsOrderTrackerOpen(false)}
+            className="w-full py-3 rounded-2xl bg-linear-to-r from-[#FF6321] to-amber-500 text-black font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg hover:opacity-95 flex items-center justify-center gap-2"
+          >
+            <ShoppingBag className="w-4 h-4" />
+            <span>{isRTL ? 'تصفح قائمة الطعام واطلب الآن 🌮' : 'Découvrir le Menu & Commander'}</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const order = activeCustomerOrder;
   const status = order.status;
@@ -121,6 +183,18 @@ export const OrderTrackerModal: React.FC = () => {
 
         {/* Modal Scrollable Content */}
         <div className="p-4 sm:p-6 overflow-y-auto space-y-5 no-scrollbar">
+          {/* Privacy & Notification Guarantee Banner */}
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-black/40 border border-white/5 text-[11px] text-gray-400">
+            <span className="flex items-center gap-1.5 text-gray-300">
+              <Lock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>{isRTL ? 'طلب محمي بخصوصية تامة (لا يظهر لأي زبون آخر)' : 'Commande privée & confidentielle'}</span>
+            </span>
+            <span className="flex items-center gap-1 text-amber-400 font-bold">
+              <BellRing className="w-3 h-3 animate-pulse" />
+              <span>{isRTL ? 'تنبيه الجرس نشط' : 'Alerte cloche active'}</span>
+            </span>
+          </div>
+
           {/* Status Ready Banner */}
           {status === 'ready' && (
             <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/80 to-emerald-900/60 border-2 border-emerald-500/60 shadow-[0_0_25px_rgba(16,185,129,0.3)] text-center animate-in zoom-in-95 duration-300">

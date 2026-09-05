@@ -63,6 +63,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Online sub-mode: Livraison (+fee) vs A emporter (0 DA)
   const [onlineType, setOnlineType] = useState<'livraison' | 'a_emporter'>('livraison');
 
+  // Manual delivery fee adjustment based on delivery company distance
+  const [manualDeliveryFee, setManualDeliveryFee] = useState<number>(config.deliveryFee || 200);
+
   // Customer details
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -100,7 +103,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     orderChannel === 'table' ? 'sur_place' : onlineType;
 
   const deliveryFee =
-    orderChannel === 'online' && onlineType === 'livraison' ? config.deliveryFee : 0;
+    orderChannel === 'online' && onlineType === 'livraison' ? manualDeliveryFee : 0;
   const finalTotal = subtotal + deliveryFee;
 
   // Build formatted WhatsApp message
@@ -589,6 +592,77 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       onChange={(e) => setDeliveryAddress(e.target.value)}
                       className={`w-full ${isRTL ? 'pr-9 pl-3 text-right' : 'pl-9 pr-3'} py-2 rounded-xl bg-[#1A1A1C] border border-white/10 focus:border-[#FF6321] text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-hidden resize-none transition-colors`}
                     />
+                  </div>
+
+                  {/* Manual Delivery Fee Adjustment Based On Delivery Company Distance */}
+                  <div className="pt-2 border-t border-white/5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-gray-300 flex items-center gap-1.5">
+                        <Bike className="w-3.5 h-3.5 text-[#FF6321]" />
+                        <span>{isRTL ? 'سعر التوصيل (تعديل يدوي حسب المسافة)' : 'Tarif de livraison (Ajustable)'}</span>
+                      </label>
+                      <span className="text-xs font-black text-[#FF6321] font-mono bg-[#FF6321]/10 px-2 py-0.5 rounded-lg border border-[#FF6321]/20">
+                        {manualDeliveryFee} {config.currency}
+                      </span>
+                    </div>
+
+                    <p className="text-[10px] text-gray-400 leading-relaxed">
+                      {isRTL
+                        ? 'يختلف سعر التوصيل بحسب مسافة وسعر شركة التوصيل المعتمدة. يمكنك اختياره سريعاً أو كتابته يدوياً:'
+                        : 'Le prix varie selon la distance convenue avec l\'entreprise de livraison. Choisissez ou saisissez le montant :'}
+                    </p>
+
+                    {/* Quick Distance Presets */}
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {[
+                        { fee: 150, labelAr: 'قريب (150 دج)', labelFr: '150 DA' },
+                        { fee: 200, labelAr: 'الوسط (200 دج)', labelFr: '200 DA' },
+                        { fee: 250, labelAr: 'متوسط (250 دج)', labelFr: '250 DA' },
+                        { fee: 300, labelAr: 'بعيد (300 دج)', labelFr: '300 DA' },
+                      ].map((preset) => (
+                        <button
+                          key={preset.fee}
+                          type="button"
+                          onClick={() => setManualDeliveryFee(preset.fee)}
+                          className={`py-1 px-1 rounded-xl text-[10px] font-bold border transition-all cursor-pointer text-center ${
+                            manualDeliveryFee === preset.fee
+                              ? 'bg-[#FF6321] text-black border-transparent font-black shadow-xs'
+                              : 'bg-[#1A1A1D] border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+                          }`}
+                        >
+                          {isRTL ? preset.labelAr : preset.labelFr}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Manual +/- adjust stepper */}
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setManualDeliveryFee((prev) => Math.max(0, prev - 50))}
+                        className="h-8 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 font-black text-xs transition-colors cursor-pointer"
+                      >
+                        -50 دج
+                      </button>
+                      <div className="flex-1 flex items-center justify-center bg-[#1A1A1D] border border-white/10 rounded-xl px-2 py-1">
+                        <input
+                          type="number"
+                          min="0"
+                          step="10"
+                          value={manualDeliveryFee}
+                          onChange={(e) => setManualDeliveryFee(Math.max(0, Number(e.target.value) || 0))}
+                          className="w-full text-center bg-transparent text-xs font-mono font-bold text-white focus:outline-none"
+                        />
+                        <span className="text-[10px] text-gray-500 font-bold ml-1">{config.currency}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setManualDeliveryFee((prev) => prev + 50)}
+                        className="h-8 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 font-black text-xs transition-colors cursor-pointer"
+                      >
+                        +50 دج
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}

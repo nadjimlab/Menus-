@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Phone, Search, Menu as MenuIcon, X, MapPin, Gamepad2, Clock, Globe } from 'lucide-react';
+import { ShoppingBag, Phone, Search, Menu as MenuIcon, X, MapPin, Gamepad2, Clock, Globe, BellRing, Bell } from 'lucide-react';
 import { MustacheLogo } from './MustacheLogo';
 import { useCart } from '../context/CartContext';
 import { useConfig } from '../context/ConfigContext';
@@ -114,22 +114,35 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, onOpenAdmin }) => 
               <span className="hidden sm:inline">{isRTL ? 'اللعبة 🎮' : 'Jeu 🎮'}</span>
             </button>
 
-            {/* Active Customer Order Tracker Trigger Button */}
-            {activeCustomerOrder && (
+            {/* Customer Order Tracker & Notification Bell */}
+            {activeCustomerOrder ? (
               <button
                 onClick={() => setIsOrderTrackerOpen(true)}
-                title={isRTL ? 'تتبع حالة طلبك' : 'Suivi de commande'}
-                className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 text-xs font-black transition-all cursor-pointer active:scale-95 shadow-[0_0_12px_rgba(16,185,129,0.3)] animate-pulse"
+                title={isRTL ? 'إشعار وتتبع طلبك الجاري' : 'Suivi de commande en direct'}
+                className={`relative flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-black transition-all cursor-pointer active:scale-95 shadow-lg ${
+                  activeCustomerOrder.status === 'ready'
+                    ? 'bg-emerald-950/90 hover:bg-emerald-900 border-emerald-500 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.4)] animate-bounce'
+                    : 'bg-amber-950/80 hover:bg-amber-900 border-amber-500/50 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
+                }`}
               >
-                <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                <BellRing className={`w-3.5 h-3.5 ${activeCustomerOrder.status === 'ready' ? 'text-emerald-400' : 'text-amber-400'}`} />
                 <span>
                   {activeCustomerOrder.status === 'ready'
-                    ? (isRTL ? '🔔 جاهز!' : '🔔 Prêt !')
-                    : (isRTL ? '👨‍🍳 تحضير' : '👨‍🍳 En cours')}
+                    ? (isRTL ? 'طلبك جاهز!' : 'Prêt !')
+                    : (isRTL ? 'جاري التحضير' : 'En cours')}
                 </span>
-                <span className="hidden sm:inline font-mono font-bold text-[10px]">
+                <span className="hidden sm:inline font-mono font-bold text-[10px] opacity-80">
                   #{activeCustomerOrder.id.replace('CT-', '')}
                 </span>
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsOrderTrackerOpen(true)}
+                title={isRTL ? 'مركز الإشعارات وتتبع الطلبات الخاصة بك' : 'Notifications & Suivi'}
+                className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-[#1A1A1C] hover:bg-[#252527] border border-white/10 hover:border-amber-500/40 text-gray-300 hover:text-amber-400 transition-all cursor-pointer active:scale-95 shadow-xs"
+              >
+                <Bell className="w-4 h-4" />
               </button>
             )}
 

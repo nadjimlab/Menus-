@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import QRCode from 'qrcode';
-import { MustacheLogo } from './MustacheLogo';
+import { MustacheIcon } from './MustacheLogo';
 import { Printer, Download, ExternalLink, QrCode } from 'lucide-react';
 
 interface TableStandCardProps {
@@ -59,7 +59,7 @@ export const TableStandCard: React.FC<TableStandCardProps> = ({ tableNumber }) =
       >
         {/* Top Banner */}
         <div className="w-full bg-[#0A0A0B] text-white py-2 px-4 rounded-xl mb-4 flex items-center justify-center gap-2 shadow-inner">
-          <MustacheLogo className="w-5 h-2.5 text-[#FF6321]" />
+          <MustacheIcon className="w-5 h-2.5 text-[#FF6321]" />
           <span className="text-sm font-black font-heading tracking-wider">CHENEB TACOS</span>
         </div>
 

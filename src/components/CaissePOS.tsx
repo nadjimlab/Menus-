@@ -5,7 +5,7 @@ import { useConfig } from '../context/ConfigContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Product, CategoryId, OrderItemRecord, PlacedOrder } from '../types';
 import { CATEGORIES } from '../data/menuData';
-import { MustacheLogo } from './MustacheLogo';
+import { MustacheIcon } from './MustacheLogo';
 import { soundFx } from '../utils/soundEffects';
 import {
   CreditCard,
@@ -61,6 +61,9 @@ export const CaissePOS: React.FC = () => {
   const [cashReceivedInput, setCashReceivedInput] = useState<string>('');
   const [activeTicketOrderForReceipt, setActiveTicketOrderForReceipt] = useState<PlacedOrder | null>(null);
 
+  // Manual delivery fee adjustment for POS delivery orders
+  const [posDeliveryFee, setPosDeliveryFee] = useState<number>(config.deliveryFee || 200);
+
   // Settlement modal for existing unpaid orders
   const [orderToSettle, setOrderToSettle] = useState<PlacedOrder | null>(null);
   const [settleMethod, setSettleMethod] = useState<'cash' | 'baridimob' | 'carte'>('cash');
@@ -93,7 +96,7 @@ export const CaissePOS: React.FC = () => {
     return ticketItems.reduce((sum, item) => sum + item.totalPrice, 0);
   }, [ticketItems]);
 
-  const deliveryFee = orderType === 'livraison' ? config.deliveryFee : 0;
+  const deliveryFee = orderType === 'livraison' ? posDeliveryFee : 0;
   const totalAmount = subtotal + deliveryFee;
 
   const cashReceivedNumber = Number(cashReceivedInput) || 0;
@@ -580,15 +583,49 @@ export const CaissePOS: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <User className="w-3.5 h-3.5 text-gray-500 shrink-0" />
-                  <input
-                    type="text"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder={isRTL ? 'اسم الزبون (اختياري)...' : 'Nom du client (optionnel)...'}
-                    className="w-full px-2.5 py-1 bg-[#1A1A1C] border border-white/5 rounded-lg text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#FF6321]"
-                  />
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <User className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder={isRTL ? 'اسم الزبون (اختياري)...' : 'Nom du client (optionnel)...'}
+                      className="w-full px-2.5 py-1 bg-[#1A1A1C] border border-white/5 rounded-lg text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#FF6321]"
+                    />
+                  </div>
+
+                  {orderType === 'livraison' && (
+                    <div className="flex items-center justify-between p-1.5 rounded-lg bg-[#1A1A1C] border border-amber-500/30 text-xs">
+                      <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+                        <Bike className="w-3.5 h-3.5 text-amber-400" />
+                        <span>{isRTL ? 'توصيل يدوي:' : 'Livraison :'}</span>
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setPosDeliveryFee((p) => Math.max(0, p - 50))}
+                          className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-gray-300 text-[10px] font-bold cursor-pointer"
+                        >
+                          -50
+                        </button>
+                        <input
+                          type="number"
+                          value={posDeliveryFee}
+                          onChange={(e) => setPosDeliveryFee(Math.max(0, Number(e.target.value) || 0))}
+                          className="w-12 text-center bg-black/50 border border-white/10 rounded px-1 text-xs font-mono font-bold text-amber-400 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setPosDeliveryFee((p) => p + 50)}
+                          className="px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10 text-gray-300 text-[10px] font-bold cursor-pointer"
+                        >
+                          +50
+                        </button>
+                        <span className="text-[10px] text-gray-500 font-bold">{config.currency}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1207,7 +1244,9 @@ export const CaissePOS: React.FC = () => {
             {/* Thermal Ticket Content */}
             <div className="text-center space-y-1">
               <div className="flex justify-center mb-1">
-                <MustacheLogo className="w-10 h-5 text-black" />
+                <div className="w-9 h-9 rounded-full bg-[#FF6321] flex items-center justify-center shadow-xs">
+                  <MustacheIcon className="w-5 h-2.5 text-black" />
+                </div>
               </div>
               <h3 className="font-black text-base uppercase tracking-tighter">
                 {config.restaurantName}

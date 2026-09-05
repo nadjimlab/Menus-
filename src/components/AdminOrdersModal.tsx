@@ -60,6 +60,9 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
   const [isManagerMode, setIsManagerMode] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [cashierLoginMode, setCashierLoginMode] = useState(false);
+  const [cashierName, setCashierName] = useState('');
+  const [cashierCode, setCashierCode] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginErrorMessage, setLoginErrorMessage] = useState('');
   const [pinError, setPinError] = useState(false);
@@ -108,7 +111,20 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
     }
     setLoginLoading(true);
     setLoginErrorMessage('');
-    const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail.trim(), password: loginPassword });
+    const cashierEmail = import.meta.env.VITE_CASHIER_AUTH_EMAIL as string | undefined;
+    const email = cashierLoginMode ? cashierEmail : loginEmail.trim();
+    const password = cashierLoginMode ? `cheneb-pin:${cashierCode}` : loginPassword;
+    if (cashierLoginMode && (!cashierName.trim() || !/^\d{4}$/.test(cashierCode))) {
+      setLoginLoading(false);
+      setLoginErrorMessage(isRTL ? 'أدخل اسم الموظف ورمزًا من 4 أرقام' : 'Saisissez le nom et un code de 4 chiffres');
+      return;
+    }
+    if (cashierLoginMode && !cashierEmail) {
+      setLoginLoading(false);
+      setLoginErrorMessage(isRTL ? 'لم يتم إعداد بريد حساب الكاشير في Vercel' : 'L’email du compte caissier n’est pas configuré');
+      return;
+    }
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email || '', password });
     setLoginLoading(false);
     if (error || !data.user) {
       setLoginErrorMessage(isRTL ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Email ou mot de passe incorrect');
@@ -219,14 +235,30 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
           <h3 className="text-lg sm:text-xl font-black uppercase text-white font-heading mb-1">
             {isRTL ? 'دخول طاقم المطعم' : 'Connexion équipe'}
           </h3>
-          <p className="text-xs text-gray-400 max-w-xs mx-auto mb-6">
-            {isRTL ? 'استخدم حساب Supabase Auth الخاص بالمدير أو الكاشير.' : 'Utilisez le compte Supabase Auth du manager ou du caissier.'}
-          </p>
+          <div className="flex p-1 rounded-xl bg-[#141416] border border-white/10 mb-5">
+            <button type="button" onClick={() => setCashierLoginMode(false)} className={`flex-1 py-2 rounded-lg text-xs font-black cursor-pointer ${!cashierLoginMode ? 'bg-[#FF6321] text-black' : 'text-gray-400'}`}>
+              {isRTL ? 'المدير' : 'Manager'}
+            </button>
+            <button type="button" onClick={() => setCashierLoginMode(true)} className={`flex-1 py-2 rounded-lg text-xs font-black cursor-pointer ${cashierLoginMode ? 'bg-[#FF6321] text-black' : 'text-gray-400'}`}>
+              {isRTL ? 'الكاشير' : 'Caissier'}
+            </button>
+          </div>
           <form onSubmit={handleAuthSubmit} className="w-full space-y-3 text-start">
-            <label className="block text-xs font-bold text-gray-300">Email</label>
-            <input type="email" required autoComplete="username" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-white outline-none focus:border-[#FF6321]" placeholder="staff@chenebtacos.dz" />
-            <label className="block text-xs font-bold text-gray-300">{isRTL ? 'كلمة المرور' : 'Mot de passe'}</label>
-            <input type="password" required autoComplete="current-password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-white outline-none focus:border-[#FF6321]" placeholder="••••••••" />
+            {cashierLoginMode ? (
+              <>
+                <label className="block text-xs font-bold text-gray-300">{isRTL ? 'اسم الموظف' : 'Nom du caissier'}</label>
+                <input type="text" required value={cashierName} onChange={(e) => setCashierName(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-white outline-none focus:border-[#FF6321]" placeholder={isRTL ? 'مثال: يوسف بن سالم' : 'Ex : Youssef Ben Salem'} />
+                <label className="block text-xs font-bold text-gray-300">{isRTL ? 'رمز السر (4 أرقام)' : 'Code secret (4 chiffres)'}</label>
+                <input type="password" required inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="current-password" value={cashierCode} onChange={(e) => setCashierCode(e.target.value.replace(/\D/g, '').slice(0, 4))} className="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-white outline-none focus:border-[#FF6321] tracking-[0.5em] text-center" placeholder="••••" />
+              </>
+            ) : (
+              <>
+                <label className="block text-xs font-bold text-gray-300">Email</label>
+                <input type="email" required autoComplete="username" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-white outline-none focus:border-[#FF6321]" placeholder="manager@chenebtacos.dz" />
+                <label className="block text-xs font-bold text-gray-300">{isRTL ? 'كلمة المرور' : 'Mot de passe'}</label>
+                <input type="password" required autoComplete="current-password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-white outline-none focus:border-[#FF6321]" placeholder="••••••••" />
+              </>
+            )}
             {loginErrorMessage && <p className="text-xs text-red-400 font-bold">{loginErrorMessage}</p>}
             <button type="submit" disabled={loginLoading} className="w-full py-3 rounded-xl bg-[#FF6321] disabled:opacity-50 text-black font-black cursor-pointer">
               {loginLoading ? (isRTL ? 'جارٍ التحقق...' : 'Vérification...') : (isRTL ? 'دخول آمن' : 'Connexion sécurisée')}

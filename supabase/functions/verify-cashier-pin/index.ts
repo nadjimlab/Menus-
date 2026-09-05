@@ -77,7 +77,7 @@ Deno.serve(async (request) => {
     }
 
     const staff = Array.isArray(data) ? data[0] : null;
-    if (!staff || staff.staff_role !== 'cashier') {
+    if (!staff || !['cashier', 'manager'].includes(staff.staff_role)) {
       return jsonResponse({ error: 'اسم العامل أو رمز السر غير صحيح' }, 401);
     }
 

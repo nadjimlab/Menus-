@@ -107,75 +107,48 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
     e.preventDefault();
     setLoginErrorMessage('');
 
-    if (cashierLoginMode) {
-      if (!cashierName.trim() || !/^\d{4}$/.test(cashierCode)) {
-        setLoginErrorMessage(isRTL ? 'أدخل اسم الموظف ورمزًا من 4 أرقام' : 'Saisissez le nom et un code de 4 chiffres');
-        return;
-      }
-
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-      const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
-      if (!supabaseUrl || !publishableKey) {
-        setLoginErrorMessage(isRTL ? 'إعدادات Supabase غير مكتملة' : 'La configuration Supabase est incomplète');
-        return;
-      }
-
-      setLoginLoading(true);
-      try {
-        const response = await fetch(`${supabaseUrl}/functions/v1/verify-cashier-pin`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: publishableKey,
-            Authorization: `Bearer ${publishableKey}`,
-          },
-          body: JSON.stringify({
-            employeeName: cashierName.trim(),
-            pin: cashierCode,
-          }),
-        });
-        const result = await response.json() as { staff?: { role?: string }; error?: string };
-
-        if (!response.ok || !result.staff || result.staff.role !== 'cashier') {
-          setLoginErrorMessage(result.error || (isRTL ? 'اسم الكاشير أو الرمز غير صحيح' : 'Nom ou code caissier incorrect'));
-          return;
-        }
-
-        setIsAuthenticated(true);
-        setIsManagerMode(false);
-        setIsManagerAuthenticated(false);
-      } catch {
-        setLoginErrorMessage(isRTL ? 'تعذر الاتصال بخدمة التحقق' : 'Impossible de joindre le service de vérification');
-      } finally {
-        setLoginLoading(false);
-      }
+    if (!cashierName.trim() || !/^\d{4}$/.test(cashierCode)) {
+      setLoginErrorMessage(isRTL ? 'أدخل الاسم ورمزًا من 4 أرقام' : 'Saisissez le nom et un code de 4 chiffres');
       return;
     }
 
-    if (!supabase) {
-      setLoginErrorMessage(isRTL ? 'Supabase Auth غير مهيأ في إعدادات الموقع' : 'Supabase Auth n’est pas configuré');
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+    const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+    if (!supabaseUrl || !publishableKey) {
+      setLoginErrorMessage(isRTL ? 'إعدادات Supabase غير مكتملة' : 'La configuration Supabase est incomplète');
       return;
     }
 
     setLoginLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: loginEmail.trim(),
-      password: loginPassword,
-    });
-    setLoginLoading(false);
-    if (error || !data.user) {
-      setLoginErrorMessage(isRTL ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Email ou mot de passe incorrect');
-      return;
+    try {
+      const response = await fetch(`${supabaseUrl}/functions/v1/verify-cashier-pin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: publishableKey,
+          Authorization: `Bearer ${publishableKey}`,
+        },
+        body: JSON.stringify({
+          employeeName: cashierName.trim(),
+          pin: cashierCode,
+        }),
+      });
+      const result = await response.json() as { staff?: { role?: string }; error?: string };
+      const role = result.staff?.role;
+
+      if (!response.ok || !result.staff || (role !== 'cashier' && role !== 'manager')) {
+        setLoginErrorMessage(result.error || (isRTL ? 'الاسم أو الرمز غير صحيح' : 'Nom ou code incorrect'));
+        return;
+      }
+
+      setIsAuthenticated(true);
+      setIsManagerMode(role === 'manager');
+      setIsManagerAuthenticated(role === 'manager');
+    } catch {
+      setLoginErrorMessage(isRTL ? 'تعذر الاتصال بخدمة التحقق' : 'Impossible de joindre le service de vérification');
+    } finally {
+      setLoginLoading(false);
     }
-    const role = data.user.app_metadata?.role;
-    if (role !== 'manager' && role !== 'cashier') {
-      await supabase.auth.signOut();
-      setLoginErrorMessage(isRTL ? 'هذا الحساب ليس حساب موظف مصرح' : 'Ce compte n’est pas autorisé pour le personnel');
-      return;
-    }
-    setIsAuthenticated(true);
-    setIsManagerMode(role === 'manager');
-    setIsManagerAuthenticated(role === 'manager');
   };
 
   const handleLogout = () => {
@@ -281,21 +254,12 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
             </button>
           </div>
           <form onSubmit={handleAuthSubmit} className="w-full space-y-3 text-start">
-            {cashierLoginMode ? (
-              <>
-                <label className="block text-xs font-bold text-gray-300">{isRTL ? 'اسم الموظف' : 'Nom du caissier'}</label>
-                <input type="text" required value={cashierName} onChange={(e) => setCashierName(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-white outline-none focus:border-[#FF6321]" placeholder={isRTL ? 'مثال: يوسف بن سالم' : 'Ex : Youssef Ben Salem'} />
-                <label className="block text-xs font-bold text-gray-300">{isRTL ? 'رمز السر (4 أرقام)' : 'Code secret (4 chiffres)'}</label>
-                <input type="password" required inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="current-password" value={cashierCode} onChange={(e) => setCashierCode(e.target.value.replace(/\D/g, '').slice(0, 4))} className="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-white outline-none focus:border-[#FF6321] tracking-[0.5em] text-center" placeholder="••••" />
-              </>
-            ) : (
-              <>
-                <label className="block text-xs font-bold text-gray-300">Email</label>
-                <input type="email" required autoComplete="username" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-white outline-none focus:border-[#FF6321]" placeholder="manager@chenebtacos.dz" />
-                <label className="block text-xs font-bold text-gray-300">{isRTL ? 'كلمة المرور' : 'Mot de passe'}</label>
-                <input type="password" required autoComplete="current-password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-white outline-none focus:border-[#FF6321]" placeholder="••••••••" />
-              </>
-            )}
+            <label className="block text-xs font-bold text-gray-300">
+              {isRTL ? (cashierLoginMode ? 'اسم الكاشير' : 'اسم المدير') : (cashierLoginMode ? 'Nom du caissier' : 'Nom du manager')}
+            </label>
+            <input type="text" required value={cashierName} onChange={(e) => setCashierName(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-white outline-none focus:border-[#FF6321]" placeholder={isRTL ? 'مثال: يوسف بن سالم' : 'Ex : Youssef Ben Salem'} />
+            <label className="block text-xs font-bold text-gray-300">{isRTL ? 'رمز السر (4 أرقام)' : 'Code secret (4 chiffres)'}</label>
+            <input type="password" required inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="current-password" value={cashierCode} onChange={(e) => setCashierCode(e.target.value.replace(/\D/g, '').slice(0, 4))} className="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-white outline-none focus:border-[#FF6321] tracking-[0.5em] text-center" placeholder="••••" />
             {loginErrorMessage && <p className="text-xs text-red-400 font-bold">{loginErrorMessage}</p>}
             <button type="submit" disabled={loginLoading} className="w-full py-3 rounded-xl bg-[#FF6321] disabled:opacity-50 text-black font-black cursor-pointer">
               {loginLoading ? (isRTL ? 'جارٍ التحقق...' : 'Vérification...') : (isRTL ? 'دخول آمن' : 'Connexion sécurisée')}

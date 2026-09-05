@@ -42,12 +42,25 @@ Deno.serve(async (request) => {
     }
 
     if (request.method === 'PATCH') {
-      const payload = await request.json() as { orderId?: unknown; status?: unknown };
+      const payload = await request.json() as { orderId?: unknown; status?: unknown; isPaid?: unknown; paymentMethod?: unknown; cashReceived?: unknown; changeGiven?: unknown; paidAt?: unknown };
       const orderId = typeof payload.orderId === 'string' ? payload.orderId.trim() : '';
-      const status = typeof payload.status === 'string' ? payload.status : '';
-      if (!orderId || !['received', 'preparing', 'ready', 'completed', 'cancelled'].includes(status)) return reply({ error: 'بيانات الحالة غير صحيحة' }, 400);
-      const now = new Date().toISOString();
-      const { data, error } = await supabase.from('orders').update({ status, status_updated_at: now, estimated_minutes: status === 'ready' ? 0 : status === 'preparing' ? 10 : 0 }).eq('id', orderId).select('*').limit(1);
+      if (!orderId) return reply({ error: 'رقم الطلب غير صحيح' }, 400);
+      const updates: Record<string, unknown> = {};
+      if (typeof payload.status === 'string' && ['received', 'preparing', 'ready', 'completed', 'cancelled'].includes(payload.status)) {
+        updates.status = payload.status;
+        updates.status_updated_at = new Date().toISOString();
+        updates.estimated_minutes = payload.status === 'ready' ? 0 : payload.status === 'preparing' ? 10 : 0;
+      }
+      if (payload.isPaid === true) {
+        if (!['cash', 'baridimob', 'carte'].includes(String(payload.paymentMethod))) return reply({ error: 'طريقة الدفع غير صحيحة' }, 400);
+        updates.is_paid = true;
+        updates.payment_method = payload.paymentMethod;
+        updates.cash_received = typeof payload.cashReceived === 'number' ? payload.cashReceived : null;
+        updates.change_given = typeof payload.changeGiven === 'number' ? payload.changeGiven : 0;
+        updates.paid_at = typeof payload.paidAt === 'string' ? payload.paidAt : new Date().toISOString();
+      }
+      if (!Object.keys(updates).length) return reply({ error: 'لا توجد تغييرات صالحة' }, 400);
+      const { data, error } = await supabase.from('orders').update(updates).eq('id', orderId).select('*').limit(1);
       if (error) {
         console.error('staff order update failed', { code: error.code, message: error.message });
         return reply({ error: 'تعذر تحديث حالة الطلب' }, 500);

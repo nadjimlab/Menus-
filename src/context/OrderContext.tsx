@@ -480,7 +480,16 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (!supabase) {
       updateDoc(doc(db, 'orders', orderId), paymentUpdates).catch((err) => console.error('Failed to update order payment in Firestore:', err));
     }
-    if (supabase) {
+    const staffToken = typeof window !== 'undefined' ? localStorage.getItem(STAFF_SESSION_STORAGE_KEY) : null;
+    if (staffToken && SUPABASE_URL) {
+      void fetch(`${SUPABASE_URL}/functions/v1/staff-orders`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-staff-session': staffToken },
+        body: JSON.stringify({ orderId, isPaid: true, paymentMethod, cashReceived: paymentUpdates.cashReceived, changeGiven: paymentUpdates.changeGiven, paidAt: paymentUpdates.paidAt }),
+      }).then(async (response) => {
+        if (!response.ok) console.error('Staff payment update failed:', await response.text());
+      }).catch((error) => console.error('Staff payment request failed:', error));
+    } else if (supabase) {
       void supabase.from('orders').update({ is_paid: true, payment_method: paymentMethod, cash_received: paymentUpdates.cashReceived, change_given: paymentUpdates.changeGiven, paid_at: paymentUpdates.paidAt }).eq('id', orderId).then(({ error }) => {
         if (error) console.error('Supabase payment update failed:', error.message);
       });

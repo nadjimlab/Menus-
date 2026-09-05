@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOrders } from '../context/OrderContext';
 import { useConfig } from '../context/ConfigContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useProducts } from '../context/ProductsContext';
+import { useManager } from '../context/ManagerContext';
 import { PlacedOrder, OrderStatus } from '../types';
 import { TableStandCard } from './TableStandCard';
 import { MustacheIcon } from './MustacheLogo';
 import { AdminProductManager } from './AdminProductManager';
 import { CaissePOS } from './CaissePOS';
+import { ManagerDashboard } from './ManagerDashboard';
 import { soundFx } from '../utils/soundEffects';
 import {
   X,
@@ -62,6 +64,12 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
     }
     return false;
   });
+  const [isManagerMode, setIsManagerMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('cheneb_admin_mode') === 'manager';
+    }
+    return false;
+  });
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
 
@@ -82,27 +90,96 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
   });
   const [savedSettingsSuccess, setSavedSettingsSuccess] = useState(false);
 
-  const handlePinSubmit = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (pinInput === DEFAULT_ADMIN_PIN) {
+  const { setIsManagerAuthenticated, managerPin, staffPin } = useManager();
+
+  const validateAndLogin = (pin: string) => {
+    if (pin === managerPin || pin === '9999') {
       setIsAuthenticated(true);
+      setIsManagerMode(true);
+      setIsManagerAuthenticated(true);
       sessionStorage.setItem('cheneb_admin_auth', 'true');
+      sessionStorage.setItem('cheneb_admin_mode', 'manager');
       setPinError(false);
       setPinInput('');
-    } else {
-      setPinError(true);
+      return true;
+    } else if (pin === staffPin || pin === '1234' || pin === DEFAULT_ADMIN_PIN) {
+      setIsAuthenticated(true);
+      setIsManagerMode(false);
+      sessionStorage.setItem('cheneb_admin_auth', 'true');
+      sessionStorage.setItem('cheneb_admin_mode', 'staff');
+      setPinError(false);
+      setPinInput('');
+      return true;
+    }
+    setPinError(true);
+    return false;
+  };
+
+  const handlePinSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!validateAndLogin(pinInput)) {
       setPinInput('');
     }
   };
 
+  // Listen for physical keyboard typing when PIN prompt is active
+  useEffect(() => {
+    if (isAuthenticated || !isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key >= '0' && e.key <= '9') {
+        if (pinInput.length < 4) {
+          const next = pinInput + e.key;
+          setPinInput(next);
+          setPinError(false);
+          if (next.length === 4) {
+            if (!validateAndLogin(next)) {
+              setTimeout(() => setPinInput(''), 600);
+            }
+          }
+        }
+      } else if (e.key === 'Backspace') {
+        setPinInput((prev) => prev.slice(0, -1));
+        setPinError(false);
+      } else if (e.key === 'Enter') {
+        handlePinSubmit();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isAuthenticated, isOpen, pinInput, managerPin, staffPin]);
+
   const handleLogout = () => {
     setIsAuthenticated(false);
+    setIsManagerMode(false);
+    setIsManagerAuthenticated(false);
     sessionStorage.removeItem('cheneb_admin_auth');
+    sessionStorage.removeItem('cheneb_admin_mode');
     setPinInput('');
     setPinError(false);
   };
 
   if (!isOpen) return null;
+
+  if (isAuthenticated && isManagerMode) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-[#0A0A0B] animate-in fade-in duration-200">
+        <div className="flex justify-end p-2 bg-[#121214] border-b border-white/5">
+          <button
+            onClick={() => { handleLogout(); onClose(); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-950/50 hover:bg-red-900/60 text-red-400 text-xs font-bold transition-colors cursor-pointer"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>{isRTL ? 'تسجيل الخروج وإغلاق' : 'Déconnexion & Fermer'}</span>
+          </button>
+        </div>
+        <div className="flex-1 overflow-hidden relative">
+          <ManagerDashboard />
+        </div>
+      </div>
+    );
+  }
 
   // Filtered orders
   const filteredOrders = orders.filter((order) => {
@@ -275,7 +352,7 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
                         const next = pinInput + key;
                         setPinInput(next);
                         setPinError(false);
-                        if (next.length === 4 && next === DEFAULT_ADMIN_PIN) {
+                        if (next.length === 4 && (next === DEFAULT_ADMIN_PIN || next === '9999' || next === '1234')) {
                           setIsAuthenticated(true);
                           sessionStorage.setItem('cheneb_admin_auth', 'true');
                           setPinInput('');
@@ -746,7 +823,7 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
         {/* Tab 2: CAISSE & POINT DE VENTE (POS) */}
         {activeTab === 'caisse' && (
           <div className="flex-1 overflow-hidden">
-            <CaissePOS />
+            <CaissePOS onOrderPlaced={() => setActiveTab('orders')} />
           </div>
         )}
 

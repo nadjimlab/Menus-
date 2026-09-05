@@ -11,14 +11,22 @@ export const TableStandCard: React.FC<TableStandCardProps> = ({ tableNumber }) =
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const cardRef = useRef<HTMLDivElement>(null);
 
+  const [copiedUrl, setCopiedUrl] = useState(false);
+
   const getTableUrl = () => {
     if (typeof window === 'undefined') return '';
-    const origin = window.location.origin;
-    const pathname = window.location.pathname;
-    return `${origin}${pathname}?table=${tableNumber}`;
+    const baseUrl = `${window.location.origin}${window.location.pathname}`.replace(/\/+$/, '');
+    return `${baseUrl}?table=${tableNumber}`;
   };
 
   const tableUrl = getTableUrl();
+
+  const handleCopyUrl = () => {
+    if (!tableUrl) return;
+    navigator.clipboard.writeText(tableUrl);
+    setCopiedUrl(true);
+    setTimeout(() => setCopiedUrl(false), 2000);
+  };
 
   useEffect(() => {
     if (!tableUrl) return;
@@ -122,12 +130,24 @@ export const TableStandCard: React.FC<TableStandCardProps> = ({ tableNumber }) =
         </button>
 
         <button
+          onClick={handleCopyUrl}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#1A1A1C] hover:bg-[#252527] border border-white/10 text-white text-xs font-bold transition-colors cursor-pointer"
+        >
+          <span>{copiedUrl ? '✓ تم نسخ الرابط' : '📋 Copier lien'}</span>
+        </button>
+
+        <button
           onClick={handleTestLink}
           className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#FF6321] hover:brightness-110 text-black text-xs font-black transition-colors cursor-pointer"
         >
           <ExternalLink className="w-3.5 h-3.5" />
           <span>Tester cette table</span>
         </button>
+      </div>
+
+      {/* URL indicator */}
+      <div className="mt-2 text-[10px] text-gray-500 font-mono text-center max-w-xs truncate">
+        {tableUrl}
       </div>
     </div>
   );

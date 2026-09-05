@@ -184,10 +184,95 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [activeCustomerOrderId]);
 
-  // Multi-tab sync with BroadcastChannel & storage event
+  // Server Synchronization: Initial fetch, Server-Sent Events (SSE), and periodic polling
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    // 1. Initial fetch from server
+    fetch('/api/orders')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.success && Array.isArray(data.orders)) {
+          setOrders(data.orders);
+        }
+      })
+      .catch((err) => {
+        console.warn('Initial server orders fetch failed, falling back to local cache', err);
+      });
+
+    // 2. Real-Time Server-Sent Events (SSE) for instant cross-device updates (phone <-> laptop)
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource('/api/orders/events');
+
+      es.addEventListener('INIT', (event: MessageEvent) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (Array.isArray(payload.orders)) {
+            setOrders(payload.orders);
+          }
+        } catch {}
+      });
+
+      es.addEventListener('NEW_ORDER', (event: MessageEvent) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.order) {
+            setOrders((prev) => {
+              if (prev.some((o) => o.id === payload.order.id)) return prev;
+              return [payload.order, ...prev];
+            });
+            // Sound chime for incoming orders
+            soundFx.playNewOrderNotification();
+          }
+        } catch {}
+      });
+
+      es.addEventListener('ORDERS_UPDATED', (event: MessageEvent) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (Array.isArray(payload.orders)) {
+            setOrders(payload.orders);
+          }
+        } catch {}
+      });
+
+      es.addEventListener('STATUS_CHANGED', (event: MessageEvent) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.orderId === activeCustomerOrderId) {
+            if (payload.status === 'ready') {
+              soundFx.playOrderReadyCelebration();
+              try {
+                confetti({
+                  particleCount: 80,
+                  spread: 70,
+                  origin: { y: 0.6 },
+                });
+              } catch {}
+            } else if (payload.status === 'preparing') {
+              soundFx.playNewOrderNotification();
+            }
+          }
+        } catch {}
+      });
+    } catch (e) {
+      console.warn('SSE connection failed:', e);
+    }
+
+    // 3. Fallback background polling every 3.5 seconds
+    const pollInterval = setInterval(() => {
+      fetch('/api/orders')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.success && Array.isArray(data.orders)) {
+            setOrders(data.orders);
+          }
+        })
+        .catch(() => {});
+    }, 3500);
+
+    // 4. Same-browser storage and BroadcastChannel synchronization
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === ORDERS_STORAGE_KEY && e.newValue) {
         try {
@@ -209,36 +294,17 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       channel = new BroadcastChannel('cheneb_orders_channel');
       channel.onmessage = (event) => {
         const { type, payload } = event.data;
-        if (type === 'ORDERS_UPDATED') {
+        if (type === 'ORDERS_UPDATED' && payload.orders) {
           setOrders(payload.orders);
         }
-        if (type === 'STATUS_CHANGED') {
-          // Check if this is the active customer's order
-          if (payload.orderId === activeCustomerOrderId) {
-            if (payload.status === 'ready') {
-              soundFx.playOrderReadyCelebration();
-              try {
-                confetti({
-                  particleCount: 80,
-                  spread: 70,
-                  origin: { y: 0.6 },
-                });
-              } catch {
-                // ignore
-              }
-            } else if (payload.status === 'preparing') {
-              soundFx.playNewOrderNotification();
-            }
-          }
-        }
       };
-    } catch {
-      // BroadcastChannel may not be available in all browsers
-    }
+    } catch {}
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       if (channel) channel.close();
+      if (es) es.close();
+      clearInterval(pollInterval);
     };
   }, [activeCustomerOrderId]);
 
@@ -305,7 +371,14 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // Play chime
     soundFx.playNewOrderNotification();
 
-    // Broadcast
+    // 1. Post to central Express backend for multi-device cross-network synchronization
+    fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newOrder),
+    }).catch((err) => console.error('Failed to post order to server:', err));
+
+    // 2. Broadcast across tabs
     try {
       const channel = new BroadcastChannel('cheneb_orders_channel');
       channel.postMessage({
@@ -368,6 +441,13 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setOrders(updated);
     soundFx.playNewOrderNotification();
 
+    // Post to central Express backend
+    fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newOrder),
+    }).catch((err) => console.error('Failed to post caisse order to server:', err));
+
     try {
       const channel = new BroadcastChannel('cheneb_orders_channel');
       channel.postMessage({
@@ -403,6 +483,19 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     });
 
     setOrders(updated);
+
+    // Patch to server
+    fetch(`/api/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        isPaid: true,
+        paymentMethod,
+        cashReceived: cashReceived !== undefined ? cashReceived : undefined,
+        changeGiven: changeGiven !== undefined ? changeGiven : undefined,
+      }),
+    }).catch((err) => console.error('Failed to patch order payment on server:', err));
+
     try {
       const channel = new BroadcastChannel('cheneb_orders_channel');
       channel.postMessage({
@@ -429,6 +522,13 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     });
 
     setOrders(updated);
+
+    // Patch status to server
+    fetch(`/api/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    }).catch((err) => console.error('Failed to patch order status on server:', err));
 
     // If status is ready and matches current active customer, play sound + confetti
     if (orderId === activeCustomerOrderId) {
@@ -471,11 +571,19 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (activeCustomerOrderId === orderId) {
       setActiveCustomerOrderId(null);
     }
+
+    fetch(`/api/orders/${orderId}`, {
+      method: 'DELETE',
+    }).catch((err) => console.error('Failed to delete order on server:', err));
   };
 
   const clearAllOrders = () => {
     setOrders([]);
     setActiveCustomerOrderId(null);
+
+    fetch('/api/orders', {
+      method: 'DELETE',
+    }).catch((err) => console.error('Failed to clear orders on server:', err));
   };
 
   const clearActiveOrder = () => {

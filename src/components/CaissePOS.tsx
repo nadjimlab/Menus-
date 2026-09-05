@@ -35,7 +35,11 @@ import {
   FileText,
 } from 'lucide-react';
 
-export const CaissePOS: React.FC = () => {
+interface CaissePOSProps {
+  onOrderPlaced?: () => void;
+}
+
+export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
   const { products } = useProducts();
   const { orders, placeCaisseOrder, markOrderPaid, updateOrderStatus } = useOrders();
   const { config } = useConfig();
@@ -207,6 +211,10 @@ export const CaissePOS: React.FC = () => {
         ? isRTL ? 'تم تحصيل الطلب بنجاح وإرساله للمطبخ !' : 'Commande encaissée et transmise en cuisine !'
         : isRTL ? 'تم إرسال الطلب للمطبخ (الدفع مؤجل)' : 'Commande transmise en cuisine (paiement différé) !'
     );
+
+    if (onOrderPlaced) {
+      onOrderPlaced();
+    }
   };
 
   // Quick cash amount button handler

@@ -4,6 +4,7 @@ import { ConfigProvider, useConfig } from './context/ConfigContext';
 import { ProductsProvider, useProducts } from './context/ProductsContext';
 import { CartProvider, useCart } from './context/CartContext';
 import { OrderProvider, useOrders } from './context/OrderContext';
+import { ManagerProvider } from './context/ManagerContext';
 import { CATEGORIES, MOOD_FILTERS } from './data/menuData';
 import { Product, CategoryId } from './types';
 import { Header } from './components/Header';
@@ -367,7 +368,9 @@ export default function App() {
         <ProductsProvider>
           <CartProvider>
             <OrderProvider>
-              <MenuAppContent />
+              <ManagerProvider>
+                <MenuAppContent />
+              </ManagerProvider>
             </OrderProvider>
           </CartProvider>
         </ProductsProvider>

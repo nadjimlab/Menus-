@@ -41,9 +41,34 @@ interface OrderContextType {
 const ORDERS_STORAGE_KEY = 'cheneb_placed_orders_v2';
 const ACTIVE_ORDER_ID_KEY = 'cheneb_active_customer_order_id_v2';
 const TABLE_STORAGE_KEY = 'cheneb_customer_table_v1';
+const API_ORDERS_URL = '/api/orders';
 
-// Initial demo orders for the kitchen display
+// Keep the kitchen empty until a real customer or cashier creates an order.
 const INITIAL_DEMO_ORDERS: PlacedOrder[] = [];
+
+const syncOrderToApi = async (order: PlacedOrder) => {
+  try {
+    await fetch(API_ORDERS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(order),
+    });
+  } catch {
+    // Firestore is the primary realtime store; the API is a deployment fallback.
+  }
+};
+
+const syncOrderPatchToApi = async (orderId: string, updates: Record<string, unknown>) => {
+  try {
+    await fetch(`${API_ORDERS_URL}/${encodeURIComponent(orderId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+  } catch {
+    // Ignore fallback errors when Firestore is available.
+  }
+};
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
@@ -223,6 +248,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setDoc(doc(db, 'orders', orderId), newOrder).catch((err) =>
       console.error('Failed to save order to Firestore:', err)
     );
+    void syncOrderToApi(newOrder);
 
     return newOrder;
   };
@@ -279,6 +305,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setDoc(doc(db, 'orders', orderId), newOrder).catch((err) =>
       console.error('Failed to save caisse order to Firestore:', err)
     );
+    void syncOrderToApi(newOrder);
 
     return newOrder;
   };
@@ -314,6 +341,13 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       changeGiven: changeGiven !== undefined ? changeGiven : null,
       paidAt: new Date().toISOString(),
     }).catch((err) => console.error('Failed to update order payment in Firestore:', err));
+    void syncOrderPatchToApi(orderId, {
+      isPaid: true,
+      paymentMethod,
+      cashReceived: cashReceived !== undefined ? cashReceived : null,
+      changeGiven: changeGiven !== undefined ? changeGiven : null,
+      paidAt: new Date().toISOString(),
+    });
   };
 
   const updateOrderStatus = (orderId: string, status: OrderStatus) => {
@@ -338,6 +372,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       statusUpdatedAt: new Date().toISOString(),
       estimatedMinutes: status === 'ready' ? 0 : status === 'preparing' ? 10 : 10,
     }).catch((err) => console.error('Failed to update order status in Firestore:', err));
+    void syncOrderPatchToApi(orderId, { status, statusUpdatedAt: new Date().toISOString() });
 
     // If status is ready and matches current active customer, play sound + confetti
     if (orderId === activeCustomerOrderId) {

@@ -24,7 +24,6 @@ import {
   UtensilsCrossed,
   Volume2,
   VolumeX,
-  PlusCircle,
   Save,
   RotateCcw,
   Check,
@@ -43,15 +42,12 @@ interface AdminOrdersModalProps {
   onClose: () => void;
 }
 
-const DEFAULT_ADMIN_PIN = '1234';
-
 export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onClose }) => {
   const {
     orders,
     updateOrderStatus,
     deleteOrder,
     clearAllOrders,
-    placeOrder,
   } = useOrders();
   const { products } = useProducts();
   const { config, updateConfig, resetConfig } = useConfig();
@@ -102,7 +98,7 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
       setPinError(false);
       setPinInput('');
       return true;
-    } else if (pin === staffPin || pin === '1234' || pin === DEFAULT_ADMIN_PIN) {
+    } else if (pin === staffPin || pin === '1234') {
       setIsAuthenticated(true);
       setIsManagerMode(false);
       sessionStorage.setItem('cheneb_admin_auth', 'true');
@@ -211,51 +207,6 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
     }
   };
 
-  // Add a test demo order to test the flow
-  const handleAddTestOrder = () => {
-    const randomTable = Math.floor(Math.random() * 10) + 1;
-    placeOrder(
-      {
-        customerName: 'Client Test ' + Math.floor(Math.random() * 100),
-        customerPhone: '0661002233',
-        deliveryType: 'sur_place',
-        tableNumber: randomTable.toString(),
-        deliveryAddress: `Table ${randomTable}`,
-        notes: 'Sans oignons avec sauce fromagère',
-      },
-      [
-        {
-          cartItemId: 'test-' + Date.now(),
-          product: {
-            id: 'tacos-double',
-            nameFr: 'Tacos Français Double',
-            nameAr: 'طاكوس فرنسي دوبل',
-            categoryId: 'tacos',
-            descriptionFr: '',
-            descriptionAr: '',
-            basePrice: 750,
-            image: '',
-            defaultIngredients: [],
-            availableExtras: [],
-            available: true,
-          },
-          customization: {
-            selectedSize: { id: 'l', name: 'L', label: 'Taille L', priceDelta: 0 },
-            removedIngredientIds: [],
-            selectedSauces: ['Sauce Fromagère Maison', 'Sauce Algérienne'],
-            selectedExtras: [],
-            specialInstructions: 'Bien grillé',
-          },
-          unitPrice: 750,
-          quantity: 1,
-          totalPrice: 750,
-        },
-      ],
-      750,
-      0
-    );
-  };
-
   const handleSettingsSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateConfig({
@@ -352,13 +303,8 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
                         const next = pinInput + key;
                         setPinInput(next);
                         setPinError(false);
-                        if (next.length === 4 && (next === DEFAULT_ADMIN_PIN || next === '9999' || next === '1234')) {
-                          setIsAuthenticated(true);
-                          sessionStorage.setItem('cheneb_admin_auth', 'true');
-                          setPinInput('');
-                        } else if (next.length === 4) {
-                          setPinError(true);
-                          setPinInput('');
+                        if (next.length === 4) {
+                          if (!validateAndLogin(next)) setTimeout(() => setPinInput(''), 600);
                         }
                       }
                     }
@@ -592,14 +538,6 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
                   {soundEnabled ? <Volume2 className="w-4 h-4 text-[#FF6321]" /> : <VolumeX className="w-4 h-4" />}
                 </button>
 
-                <button
-                  onClick={handleAddTestOrder}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#1A1A1C] hover:bg-[#252527] text-gray-200 hover:text-[#FF6321] border border-white/10 text-xs font-bold transition-colors cursor-pointer"
-                >
-                  <PlusCircle className="w-3.5 h-3.5" />
-                  <span>{isRTL ? '+ تجربة طلب' : '+ Simuler commande'}</span>
-                </button>
-
                 {orders.length > 0 && (
                   <button
                     onClick={() => {
@@ -631,12 +569,6 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
                       ? 'الطلبات الجديدة القادمة من الزبائن أو الطاولات ستظهر هنا تلقائياً'
                       : 'Les nouvelles commandes passées par les clients apparaîtront ici automatiquement.'}
                   </p>
-                  <button
-                    onClick={handleAddTestOrder}
-                    className="mt-4 px-4 py-2 rounded-xl bg-[#FF6321] text-black text-xs font-bold"
-                  >
-                    + Créer une commande test
-                  </button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

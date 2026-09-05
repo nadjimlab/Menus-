@@ -25,19 +25,6 @@ import {
   EyeOff,
 } from 'lucide-react';
 
-const PRESET_IMAGES = [
-  { label: 'Tacos Classic', url: 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?q=80&w=1000&auto=format&fit=crop' },
-  { label: 'Tacos Viande', url: 'https://images.unsplash.com/photo-1552332386-f8dd00dc2f85?q=80&w=1000&auto=format&fit=crop' },
-  { label: 'Smash Burger', url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=1000&auto=format&fit=crop' },
-  { label: 'Burger Poulet', url: 'https://images.unsplash.com/photo-1521305916504-4a1121188589?q=80&w=1000&auto=format&fit=crop' },
-  { label: 'Sandwich Baguette', url: 'https://images.unsplash.com/photo-1509722747041-616f39b57569?q=80&w=1000&auto=format&fit=crop' },
-  { label: 'Pizza 4 Fromages', url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=1000&auto=format&fit=crop' },
-  { label: 'Pizza Viande', url: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?q=80&w=1000&auto=format&fit=crop' },
-  { label: 'Plat Poulet Rôti', url: 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?q=80&w=1000&auto=format&fit=crop' },
-  { label: 'Boisson Fraîche', url: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?q=80&w=1000&auto=format&fit=crop' },
-  { label: 'Frites Chaudes', url: 'https://images.unsplash.com/photo-1576107232684-1279f3908594?q=80&w=1000&auto=format&fit=crop' },
-];
-
 const BADGE_OPTIONS: (ProductBadge | '')[] = [
   '',
   'Populaire',
@@ -85,7 +72,7 @@ export const AdminProductManager: React.FC = () => {
     basePrice: 500,
     descriptionFr: '',
     descriptionAr: '',
-    image: PRESET_IMAGES[0].url,
+    image: '',
     badge: '',
     isPopular: false,
     isNew: true,
@@ -112,7 +99,7 @@ export const AdminProductManager: React.FC = () => {
       basePrice: 500,
       descriptionFr: '',
       descriptionAr: '',
-      image: PRESET_IMAGES[0].url,
+      image: '',
       badge: 'Nouveau',
       isPopular: false,
       isNew: true,
@@ -163,6 +150,11 @@ export const AdminProductManager: React.FC = () => {
       return;
     }
 
+    if (!formData.image.trim()) {
+      showToast(isRTL ? 'يرجى رفع صورة حقيقية للمنتج أو التقاطها بالكاميرا' : 'Veuillez ajouter une vraie photo du produit');
+      return;
+    }
+
     // Default sizes generator if sizes enabled
     let sizes: SizeOption[] | undefined = undefined;
     if (formData.hasSizes) {
@@ -184,7 +176,7 @@ export const AdminProductManager: React.FC = () => {
       basePrice: Number(formData.basePrice),
       descriptionFr: formData.descriptionFr.trim(),
       descriptionAr: formData.descriptionAr.trim(),
-      image: formData.image.trim() || PRESET_IMAGES[0].url,
+      image: formData.image.trim(),
       badge: (formData.badge as ProductBadge) || undefined,
       isPopular: formData.isPopular,
       isNew: formData.isNew,
@@ -368,7 +360,7 @@ export const AdminProductManager: React.FC = () => {
                       alt={product.nameFr}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = PRESET_IMAGES[0].url;
+                        (e.target as HTMLImageElement).style.display = 'none';
                       }}
                     />
                     {product.badge && (
@@ -668,34 +660,13 @@ export const AdminProductManager: React.FC = () => {
                       alt="Preview"
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = PRESET_IMAGES[0].url;
+                        (e.target as HTMLImageElement).style.display = 'none';
                       }}
                     />
                   </div>
                 </div>
 
-                {/* Preset image buttons */}
-                <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                  <span className="text-[10px] text-gray-500 whitespace-nowrap">
-                    {isRTL ? 'نماذج سريعة:' : 'Modèles rapides :'}
-                  </span>
-                  {PRESET_IMAGES.map((preset) => (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, image: preset.url })}
-                      className={`px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer ${
-                        formData.image === preset.url
-                          ? 'bg-[#FF6321] text-black'
-                          : 'bg-[#1A1A1C] text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
               </div>
-
               {/* Badge & Options */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-white/5">
                 <div>

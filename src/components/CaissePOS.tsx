@@ -233,7 +233,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
     return orderDate === new Date().toDateString();
   });
 
-  const paidOrders = orders.filter((o) => o.isPaid);
+  const paidOrders = todayOrders.filter((o) => o.isPaid);
   const unpaidOrders = orders.filter((o) => !o.isPaid && o.status !== 'cancelled');
 
   const totalRevenue = paidOrders.reduce((sum, o) => sum + o.total, 0);
@@ -245,7 +245,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
     .reduce((sum, o) => sum + o.total, 0);
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[#0A0A0B] text-white">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden bg-[#0A0A0B] text-white">
       {/* Caisse Header & Stats */}
       <div className="p-3 sm:p-4 border-b border-white/5 bg-[#0F0F10] shrink-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -384,7 +384,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
 
       {/* TAB 1: POINT DE VENTE (POS) */}
       {caisseTab === 'pos' && (
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
           {/* Mobile switcher button bar */}
           <div className="md:hidden flex border-b border-white/5 bg-[#141416] shrink-0">
             <button
@@ -416,7 +416,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
 
           {/* LEFT: PRODUCTS LIST (Always on desktop, conditional on mobile) */}
           <div
-            className={`flex-1 flex flex-col border-b md:border-b-0 md:border-r border-white/5 overflow-hidden ${
+            className={`flex-1 min-h-0 flex flex-col border-b md:border-b-0 md:border-r border-white/5 overflow-hidden ${
               mobileView === 'ticket' ? 'hidden md:flex' : 'flex'
             }`}
           >
@@ -507,7 +507,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
 
           {/* RIGHT: TICKET & PAYMENT (Always on desktop, conditional on mobile) */}
           <div
-            className={`w-full md:w-[380px] lg:w-[420px] bg-[#0D0D0E] flex flex-col shrink-0 overflow-hidden ${
+            className={`w-full md:w-[380px] lg:w-[420px] bg-[#0D0D0E] min-h-0 flex flex-col shrink-0 overflow-hidden ${
               mobileView === 'menu' ? 'hidden md:flex' : 'flex'
             }`}
           >
@@ -818,7 +818,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
               )}
 
               {/* Action Buttons */}
-              <div className="space-y-1.5">
+              <div className="shrink-0 space-y-1.5 pt-2 border-t border-white/5 bg-[#0D0D0E]">
                 <button
                   type="button"
                   onClick={() => handleValidateTicket(true)}

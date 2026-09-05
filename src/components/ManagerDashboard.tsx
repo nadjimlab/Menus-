@@ -128,17 +128,22 @@ export const ManagerDashboard: React.FC = () => {
   );
 
   // Financial Calculations
-  const totalSalesRevenue = useMemo(() => {
-    return orders
-      .filter((o) => o.status !== 'cancelled')
-      .reduce((acc, o) => acc + (o.total || 0), 0);
+  const todayOrders = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return orders.filter((o) => new Date(o.createdAt).toISOString().split('T')[0] === today);
   }, [orders]);
 
+  const totalSalesRevenue = useMemo(() => {
+    return todayOrders
+      .filter((o) => o.status !== 'cancelled')
+      .reduce((acc, o) => acc + (o.total || 0), 0);
+  }, [todayOrders]);
+
   const totalPaidRevenue = useMemo(() => {
-    return orders
+    return todayOrders
       .filter((o) => o.status !== 'cancelled' && o.isPaid)
       .reduce((acc, o) => acc + (o.total || 0), 0);
-  }, [orders]);
+  }, [todayOrders]);
 
   const totalExpensesAmount = useMemo(() => {
     return expenses.reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
@@ -153,7 +158,7 @@ export const ManagerDashboard: React.FC = () => {
   // Sales by payment methods
   const salesByPaymentMethod = useMemo(() => {
     const methods = { cash: 0, baridimob: 0, carte: 0, unpaid: 0 };
-    orders
+    todayOrders
       .filter((o) => o.status !== 'cancelled')
       .forEach((o) => {
         if (!o.isPaid) {
@@ -167,7 +172,7 @@ export const ManagerDashboard: React.FC = () => {
         }
       });
     return methods;
-  }, [orders]);
+  }, [todayOrders]);
 
   // Handle PIN Submission
   const handlePinSubmit = (e: React.FormEvent) => {
@@ -570,7 +575,7 @@ export const ManagerDashboard: React.FC = () => {
                   {totalSalesRevenue.toLocaleString()} {config.currency}
                 </div>
                 <div className="flex items-center justify-between mt-2 text-[11px] text-gray-400">
-                  <span>{orders.length} {isRTL ? 'طلب مسجل' : 'commandes'}</span>
+                  <span>{todayOrders.length} {isRTL ? 'طلب اليوم' : 'commandes aujourd’hui'}</span>
                   <span className="text-emerald-400 font-bold">
                     {totalPaidRevenue.toLocaleString()} {config.currency} {isRTL ? 'مقبوض' : 'encaissé'}
                   </span>

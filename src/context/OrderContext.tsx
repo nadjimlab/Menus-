@@ -128,17 +128,18 @@ const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [orders, setOrders] = useState<PlacedOrder[]>(() => {
+    // Supabase is the production source of truth. Never render stale local/demo
+    // orders before the first remote load when the shared database is configured.
+    if (supabase) return [];
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem(ORDERS_STORAGE_KEY);
-        if (saved) {
-          return JSON.parse(saved);
-        }
+        if (saved) return JSON.parse(saved);
       } catch {
-        // Ignore JSON error
+        // Ignore malformed local cache.
       }
     }
-    return INITIAL_DEMO_ORDERS;
+    return [];
   });
 
   const [activeCustomerOrderId, setActiveCustomerOrderId] = useState<string | null>(() => {

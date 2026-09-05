@@ -75,7 +75,7 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
   const pinAuthenticatedRef = useRef(false);
 
   const [activeTab, setActiveTab] = useState<'orders' | 'caisse' | 'products' | 'qrcodes' | 'settings'>('orders');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('active');
   const [selectedTableNumber, setSelectedTableNumber] = useState<number>(1);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
@@ -238,6 +238,7 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
 
   // Filtered orders
   const filteredOrders = orders.filter((order) => {
+    if (statusFilter === 'active') return ['received', 'preparing', 'ready'].includes(order.status);
     if (statusFilter === 'all') return true;
     return order.status === statusFilter;
   });
@@ -481,6 +482,16 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
             {/* Filter & Action Bar */}
             <div className="p-3 sm:p-4 bg-[#141416] border-b border-white/5 flex flex-wrap items-center justify-between gap-3 shrink-0">
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                <button
+                  onClick={() => setStatusFilter('active')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                    statusFilter === 'active'
+                      ? 'bg-white text-black font-black'
+                      : 'bg-[#1A1A1C] text-gray-300 hover:text-white'
+                  }`}
+                >
+                  {isRTL ? 'النشطة' : 'Actives'} ({countByStatus.received + countByStatus.preparing + countByStatus.ready})
+                </button>
                 <button
                   onClick={() => setStatusFilter('all')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${

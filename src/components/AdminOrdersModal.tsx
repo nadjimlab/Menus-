@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useOrders } from '../context/OrderContext';
 import { useConfig } from '../context/ConfigContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -66,6 +66,7 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginErrorMessage, setLoginErrorMessage] = useState('');
   const [pinError, setPinError] = useState(false);
+  const pinAuthenticatedRef = useRef(false);
 
   const [activeTab, setActiveTab] = useState<'orders' | 'caisse' | 'products' | 'qrcodes' | 'settings'>('orders');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -88,13 +89,17 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
 
   useEffect(() => {
     if (!supabase) return;
+
     void supabase.auth.getSession().then(({ data }) => {
+      if (pinAuthenticatedRef.current) return;
       const role = data.session?.user.app_metadata?.role;
       setIsAuthenticated(role === 'manager' || role === 'cashier');
       setIsManagerMode(role === 'manager');
       setIsManagerAuthenticated(role === 'manager');
     });
+
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (pinAuthenticatedRef.current) return;
       const role = session?.user.app_metadata?.role;
       setIsAuthenticated(role === 'manager' || role === 'cashier');
       setIsManagerMode(role === 'manager');
@@ -142,6 +147,7 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
       }
 
       const isManager = role === 'manager';
+      pinAuthenticatedRef.current = true;
       setIsAuthenticated(true);
       setIsManagerMode(isManager);
       setIsManagerAuthenticated(isManager);
@@ -154,6 +160,7 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
   };
 
   const handleLogout = () => {
+    pinAuthenticatedRef.current = false;
     void supabase?.auth.signOut();
     setIsAuthenticated(false);
     setIsManagerMode(false);

@@ -4,6 +4,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useConfig } from '../context/ConfigContext';
 import { Product, CategoryId, ProductBadge, SizeOption } from '../types';
 import { CATEGORIES } from '../data/menuData';
+import { supabase } from '../lib/supabase';
 import {
   Plus,
   Search,
@@ -46,6 +47,7 @@ export const AdminProductManager: React.FC = () => {
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<{
@@ -619,9 +621,9 @@ export const AdminProductManager: React.FC = () => {
                           const file = e.target.files?.[0];
                           if (file) {
                             const reader = new FileReader();
-                            reader.onload = (event) => {
+                            reader.onload = async (event) => {
                               const img = new Image();
-                              img.onload = () => {
+                              img.onload = async () => {
                                 const canvas = document.createElement('canvas');
                                 const MAX_WIDTH = 400;
                                 const MAX_HEIGHT = 400;
@@ -644,7 +646,28 @@ export const AdminProductManager: React.FC = () => {
                                 const ctx = canvas.getContext('2d');
                                 ctx?.drawImage(img, 0, 0, width, height);
                                 const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                                setFormData((prev) => ({ ...prev, image: dataUrl }));
+                                if (!supabase) {
+                                  showToast(isRTL ? 'لم يتم إعداد Supabase Storage بعد' : 'Supabase Storage n’est pas configuré');
+                                  return;
+                                }
+                                setIsUploadingImage(true);
+                                try {
+                                  const blob = await (await fetch(dataUrl)).blob();
+                                  const path = `products/${crypto.randomUUID()}.jpg`;
+                                  const { error } = await supabase.storage.from('product-images').upload(path, blob, {
+                                    contentType: 'image/jpeg',
+                                    upsert: false,
+                                  });
+                                  if (error) throw error;
+                                  const { data } = supabase.storage.from('product-images').getPublicUrl(path);
+                                  setFormData((prev) => ({ ...prev, image: data.publicUrl }));
+                                  showToast(isRTL ? 'تم رفع الصورة بنجاح' : 'Photo envoyée avec succès');
+                                } catch (error) {
+                                  console.error('Product image upload failed:', error);
+                                  showToast(isRTL ? 'فشل رفع الصورة، تحقق من Bucket والصلاحيات' : 'Échec de l’upload. Vérifiez le bucket et les policies.');
+                                } finally {
+                                  setIsUploadingImage(false);
+                                }
                               };
                               img.src = event.target?.result as string;
                             };
@@ -798,11 +821,14 @@ export const AdminProductManager: React.FC = () => {
               <div className="pt-3 border-t border-white/10">
                 <button
                   type="submit"
-                  className="w-full py-3.5 px-4 rounded-2xl bg-[#FF6321] hover:brightness-110 text-black font-black uppercase tracking-tight text-sm shadow-[0_8px_20px_rgba(255,99,33,0.3)] flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
+                  disabled={isUploadingImage}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-[#FF6321] hover:brightness-110 disabled:opacity-50 text-black font-black uppercase tracking-tight text-sm shadow-[0_8px_20px_rgba(255,99,33,0.3)] flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
                 >
                   <Check className="w-4 h-4 stroke-[3]" />
                   <span>
-                    {editingProduct
+                    {isUploadingImage
+                      ? isRTL ? 'جاري رفع الصورة...' : 'Upload en cours...'
+                      : editingProduct
                       ? isRTL ? 'حفظ التعديلات' : 'Enregistrer les Modifications'
                       : isRTL ? 'إضافة المنتج إلى القائمة الآن' : 'Ajouter le Plat au Menu'}
                   </span>

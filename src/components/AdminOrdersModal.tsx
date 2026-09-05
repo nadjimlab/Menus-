@@ -111,17 +111,12 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
     }
     setLoginLoading(true);
     setLoginErrorMessage('');
-    const cashierEmail = import.meta.env.VITE_CASHIER_AUTH_EMAIL as string | undefined;
+    const cashierEmail = (import.meta.env.VITE_CASHIER_AUTH_EMAIL as string | undefined) || 'cashier@chenebtacos.dz';
     const email = cashierLoginMode ? cashierEmail : loginEmail.trim();
     const password = cashierLoginMode ? `cheneb-pin:${cashierCode}` : loginPassword;
     if (cashierLoginMode && (!cashierName.trim() || !/^\d{4}$/.test(cashierCode))) {
       setLoginLoading(false);
       setLoginErrorMessage(isRTL ? 'أدخل اسم الموظف ورمزًا من 4 أرقام' : 'Saisissez le nom et un code de 4 chiffres');
-      return;
-    }
-    if (cashierLoginMode && !cashierEmail) {
-      setLoginLoading(false);
-      setLoginErrorMessage(isRTL ? 'لم يتم إعداد بريد حساب الكاشير في Vercel' : 'L’email du compte caissier n’est pas configuré');
       return;
     }
     const { data, error } = await supabase.auth.signInWithPassword({ email: email || '', password });

@@ -44,6 +44,8 @@ interface AdminOrdersModalProps {
   onClose: () => void;
 }
 
+const STAFF_SESSION_STORAGE_KEY = 'cheneb_staff_session_v1';
+
 export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onClose }) => {
   const {
     orders,
@@ -63,6 +65,10 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
   const [cashierLoginMode, setCashierLoginMode] = useState(false);
   const [cashierName, setCashierName] = useState('');
   const [cashierCode, setCashierCode] = useState('');
+  const [staffSessionToken, setStaffSessionToken] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem(STAFF_SESSION_STORAGE_KEY) || '';
+  });
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginErrorMessage, setLoginErrorMessage] = useState('');
   const [pinError, setPinError] = useState(false);
@@ -88,24 +94,58 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
   const { setIsManagerAuthenticated } = useManager();
 
   useEffect(() => {
-    if (!supabase) return;
+    let cancelled = false;
+    const restoreStaffSession = async () => {
+      const token = typeof window !== 'undefined' ? localStorage.getItem(STAFF_SESSION_STORAGE_KEY) : null;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+      const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+      if (token && supabaseUrl && publishableKey) {
+        try {
+          const response = await fetch(`${supabaseUrl}/functions/v1/staff-session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', apikey: publishableKey, Authorization: `Bearer ${publishableKey}` },
+            body: JSON.stringify({ sessionToken: token }),
+          });
+          const result = await response.json() as { staff?: { fullName?: string; role?: string } };
+          const role = result.staff?.role;
+          if (response.ok && result.staff?.fullName && (role === 'manager' || role === 'cashier')) {
+            if (cancelled) return;
+            pinAuthenticatedRef.current = true;
+            setStaffSessionToken(token);
+            setCashierName(result.staff.fullName);
+            setIsAuthenticated(true);
+            setIsManagerMode(role === 'manager');
+            setIsManagerAuthenticated(role === 'manager');
+            setActiveTab(role === 'manager' ? 'orders' : 'caisse');
+            return;
+          }
+        } catch {
+          // Fall through to the normal login screen.
+        }
+        localStorage.removeItem(STAFF_SESSION_STORAGE_KEY);
+      }
 
-    void supabase.auth.getSession().then(({ data }) => {
-      if (pinAuthenticatedRef.current) return;
+      if (!supabase || pinAuthenticatedRef.current || cancelled) return;
+      const { data } = await supabase.auth.getSession();
+      if (pinAuthenticatedRef.current || cancelled) return;
       const role = data.session?.user.app_metadata?.role;
       setIsAuthenticated(role === 'manager' || role === 'cashier');
       setIsManagerMode(role === 'manager');
       setIsManagerAuthenticated(role === 'manager');
-    });
+    };
+    void restoreStaffSession();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const listener = supabase?.auth.onAuthStateChange((_event, session) => {
       if (pinAuthenticatedRef.current) return;
       const role = session?.user.app_metadata?.role;
       setIsAuthenticated(role === 'manager' || role === 'cashier');
       setIsManagerMode(role === 'manager');
       setIsManagerAuthenticated(role === 'manager');
     });
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      listener?.data.subscription.unsubscribe();
+    };
   }, [setIsManagerAuthenticated]);
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -138,7 +178,7 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
           pin: cashierCode,
         }),
       });
-      const result = await response.json() as { staff?: { role?: string }; error?: string };
+      const result = await response.json() as { staff?: { fullName?: string; role?: string }; sessionToken?: string; error?: string };
       const role = result.staff?.role;
 
       if (!response.ok || !result.staff || (role !== 'cashier' && role !== 'manager')) {
@@ -147,7 +187,13 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
       }
 
       const isManager = role === 'manager';
+      if (!result.sessionToken) {
+        setLoginErrorMessage(isRTL ? 'تعذر إنشاء جلسة آمنة' : 'Impossible de créer la session sécurisée');
+        return;
+      }
+      localStorage.setItem(STAFF_SESSION_STORAGE_KEY, result.sessionToken);
       pinAuthenticatedRef.current = true;
+      setStaffSessionToken(result.sessionToken);
       setIsAuthenticated(true);
       setIsManagerMode(isManager);
       setIsManagerAuthenticated(isManager);
@@ -161,6 +207,8 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
 
   const handleLogout = () => {
     pinAuthenticatedRef.current = false;
+    localStorage.removeItem(STAFF_SESSION_STORAGE_KEY);
+    setStaffSessionToken('');
     void supabase?.auth.signOut();
     setIsAuthenticated(false);
     setIsManagerMode(false);
@@ -182,7 +230,7 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
           </button>
         </div>
         <div className="flex-1 overflow-hidden relative">
-          <ManagerDashboard managerAuth={{ name: cashierName.trim(), pin: cashierCode }} />
+          <ManagerDashboard managerAuth={{ name: cashierName.trim(), sessionToken: staffSessionToken }} />
         </div>
       </div>
     );

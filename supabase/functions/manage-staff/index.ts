@@ -13,6 +13,8 @@ const jsonResponse = (body: Record<string, unknown>, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: corsHeaders });
 
 const getString = (value: unknown) => typeof value === 'string' ? value.trim() : '';
+const encoder = new TextEncoder();
+const fromBase64Url = (value: string) => Uint8Array.from(atob(value.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - value.length % 4) % 4)), (char) => char.charCodeAt(0));
 const allowedRoles = new Set(['manager', 'cashier', 'kitchen', 'waiter', 'delivery']);
 
 Deno.serve(async (request) => {
@@ -30,29 +32,19 @@ Deno.serve(async (request) => {
     }
 
     const payload = await request.json() as Record<string, unknown>;
-    const managerName = getString(payload.managerName);
-    const managerPin = typeof payload.managerPin === 'string' ? payload.managerPin : '';
+    const sessionToken = getString(payload.sessionToken);
     const action = getString(payload.action);
-    if (!managerName || !/^\d{4}$/.test(managerPin)) {
-      return jsonResponse({ error: 'بيانات المدير غير صحيحة' }, 400);
-    }
+    const [encodedPayload, encodedSignature] = sessionToken.split('.');
+    if (!encodedPayload || !encodedSignature) return jsonResponse({ error: 'الجلسة غير صالحة' }, 401);
+    const verifyKey = await crypto.subtle.importKey('raw', encoder.encode(serviceRoleKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+    const valid = await crypto.subtle.verify('HMAC', verifyKey, fromBase64Url(encodedSignature), encoder.encode(encodedPayload));
+    if (!valid) return jsonResponse({ error: 'الجلسة غير صالحة' }, 401);
+    const session = JSON.parse(new TextDecoder().decode(fromBase64Url(encodedPayload))) as { role?: string; exp?: number };
+    if (session.role !== 'manager' || !session.exp || session.exp < Date.now()) return jsonResponse({ error: 'هذه العملية متاحة للمدير فقط' }, 403);
 
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
-
-    const { data: verified, error: verifyError } = await supabase.rpc('verify_cashier_pin', {
-      p_employee_name: managerName,
-      p_pin: managerPin,
-    });
-    if (verifyError) {
-      console.error('manager verification failed', { code: verifyError.code, message: verifyError.message });
-      return jsonResponse({ error: 'تعذر التحقق من صلاحية المدير' }, 500);
-    }
-    const manager = Array.isArray(verified) ? verified[0] : null;
-    if (!manager || manager.staff_role !== 'manager') {
-      return jsonResponse({ error: 'هذه العملية متاحة للمدير فقط' }, 403);
-    }
 
     if (action === 'list') {
       const { data, error } = await supabase.rpc('list_staff_accounts');

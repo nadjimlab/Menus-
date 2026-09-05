@@ -14,8 +14,7 @@ type StaffAccount = {
 };
 
 type Props = {
-  managerName: string;
-  managerPin: string;
+  sessionToken: string;
   isRTL: boolean;
 };
 
@@ -27,7 +26,7 @@ const roleLabels: Record<StaffRole, { ar: string; fr: string }> = {
   delivery: { ar: 'توصيل', fr: 'Livreur' },
 };
 
-export const StaffAccessManager: React.FC<Props> = ({ managerName, managerPin, isRTL }) => {
+export const StaffAccessManager: React.FC<Props> = ({ sessionToken, isRTL }) => {
   const [staff, setStaff] = useState<StaffAccount[]>([]);
   const [fullName, setFullName] = useState('');
   const [employeeCode, setEmployeeCode] = useState('');
@@ -48,12 +47,12 @@ export const StaffAccessManager: React.FC<Props> = ({ managerName, managerPin, i
         apikey: publishableKey,
         Authorization: `Bearer ${publishableKey}`,
       },
-      body: JSON.stringify({ managerName, managerPin, ...body }),
+      body: JSON.stringify({ sessionToken, ...body }),
     });
     const result = await response.json() as { staff?: StaffAccount[] | StaffAccount; error?: string };
     if (!response.ok) throw new Error(result.error || (isRTL ? 'تعذر تنفيذ العملية' : 'Opération impossible'));
     return result;
-  }, [isRTL, managerName, managerPin]);
+  }, [isRTL, sessionToken]);
 
   const loadStaff = useCallback(async () => {
     setLoading(true);

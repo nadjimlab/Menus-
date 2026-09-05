@@ -51,7 +51,7 @@ import {
 } from '../types/manager';
 
 type ManagerDashboardProps = {
-  managerAuth?: { name: string; pin: string };
+  managerAuth?: { name: string; sessionToken: string };
 };
 
 export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerAuth }) => {
@@ -1461,7 +1461,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerAuth 
         {/* SUBTAB 5: STAFF ACCESS */}
         {/* ========================================================================= */}
         {activeTab === 'staff' && managerAuth && (
-          <StaffAccessManager managerName={managerAuth.name} managerPin={managerAuth.pin} isRTL={isRTL} />
+          <StaffAccessManager sessionToken={managerAuth.sessionToken} isRTL={isRTL} />
         )}
         {/* ========================================================================= */}
         {/* SUBTAB 6: TABLE QR CODES */}

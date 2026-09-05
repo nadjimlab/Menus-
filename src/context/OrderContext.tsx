@@ -43,6 +43,8 @@ const ORDERS_STORAGE_KEY = 'cheneb_placed_orders_v2';
 const ACTIVE_ORDER_ID_KEY = 'cheneb_active_customer_order_id_v2';
 const TABLE_STORAGE_KEY = 'cheneb_customer_table_v1';
 const API_ORDERS_URL = '/api/orders';
+const STAFF_SESSION_STORAGE_KEY = 'cheneb_staff_session_v1';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 
 // Keep the kitchen empty until a real customer or cashier creates an order.
 const INITIAL_DEMO_ORDERS: PlacedOrder[] = [];
@@ -199,6 +201,19 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (supabase) {
       let active = true;
       const loadOrders = async () => {
+        const staffToken = typeof window !== 'undefined' ? localStorage.getItem(STAFF_SESSION_STORAGE_KEY) : null;
+        if (staffToken) {
+          try {
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/staff-orders`, { headers: { 'x-staff-session': staffToken } });
+            const result = await response.json() as { orders?: Record<string, any>[] };
+            if (response.ok && Array.isArray(result.orders)) {
+              if (active) setOrders(result.orders.map((row) => supabaseRowToOrder(row)));
+              return;
+            }
+          } catch (error) {
+            console.warn('Staff order sync failed; trying customer session', error);
+          }
+        }
         const { data: sessionData } = await supabase.auth.getSession();
         if (!sessionData.session) {
           const { error: authError } = await supabase.auth.signInAnonymously();
@@ -502,7 +517,16 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (!supabase) {
       updateDoc(doc(db, 'orders', orderId), { status, statusUpdatedAt: statusUpdates.statusUpdatedAt, estimatedMinutes: statusUpdates.estimatedMinutes }).catch((err) => console.error('Failed to update order status in Firestore:', err));
     }
-    if (supabase) {
+    const staffToken = typeof window !== 'undefined' ? localStorage.getItem(STAFF_SESSION_STORAGE_KEY) : null;
+    if (staffToken && SUPABASE_URL) {
+      void fetch(`${SUPABASE_URL}/functions/v1/staff-orders`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-staff-session': staffToken },
+        body: JSON.stringify({ orderId, status }),
+      }).then(async (response) => {
+        if (!response.ok) console.error('Staff order status update failed:', await response.text());
+      }).catch((error) => console.error('Staff order status request failed:', error));
+    } else if (supabase) {
       void supabase.from('orders').update({ status, status_updated_at: statusUpdates.statusUpdatedAt, estimated_minutes: statusUpdates.estimatedMinutes }).eq('id', orderId).then(({ error }) => {
         if (error) console.error('Supabase status update failed:', error.message);
       });

@@ -227,14 +227,14 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
     window.print();
   };
 
-  // Caisse daily metrics
-  const todayOrders = orders.filter((o) => {
+    // Cashier metrics must use only real, well-formed orders.
+  const realOrders = orders.filter((o) => Boolean(o.id && o.createdAt && o.source && Array.isArray(o.items) && o.items.length > 0 && Number.isFinite(o.total)));
+  const todayOrders = realOrders.filter((o) => {
     const orderDate = new Date(o.createdAt).toDateString();
     return orderDate === new Date().toDateString();
   });
-
   const paidOrders = todayOrders.filter((o) => o.isPaid);
-  const unpaidOrders = orders.filter((o) => !o.isPaid && o.status !== 'cancelled');
+  const unpaidOrders = realOrders.filter((o) => !o.isPaid && o.status !== 'cancelled');
 
   const totalRevenue = paidOrders.reduce((sum, o) => sum + o.total, 0);
   const totalCash = paidOrders

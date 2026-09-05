@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import { MustacheIcon } from './MustacheLogo';
 import { StaffAccessManager } from './StaffAccessManager';
 import { TableStandCard } from './TableStandCard';
+import { AdminProductManager } from './AdminProductManager';
 import {
   DollarSign,
   TrendingUp,
@@ -38,6 +39,7 @@ import {
   X,
   Sparkles,
   QrCode,
+  Utensils,
 } from 'lucide-react';
 import {
   ExpenseRecord,
@@ -82,7 +84,7 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerAuth 
   const { isRTL, toggleLanguage } = useLanguage();
 
   // Navigation subtabs
-  const [activeTab, setActiveTab] = useState<'finance' | 'expenses' | 'employees' | 'attendance' | 'security' | 'staff' | 'qrcodes'>('finance');
+  const [activeTab, setActiveTab] = useState<'finance' | 'expenses' | 'employees' | 'attendance' | 'security' | 'staff' | 'qrcodes' | 'products'>('finance');
 
   // PIN input state for Manager Lock
   const [pinInput, setPinInput] = useState('');
@@ -561,6 +563,17 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerAuth 
           >
             <QrCode className="w-3.5 h-3.5" />
             <span>{isRTL ? 'QR الطاولات' : 'QR Tables'}</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('products')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'products'
+                ? 'bg-amber-500 text-black shadow-md'
+                : 'text-gray-300 hover:text-white'
+            }`}
+          >
+            <Utensils className="w-3.5 h-3.5" />
+            <span>{isRTL ? 'إدارة المنتجات' : 'Produits'}</span>
           </button>
           <button
             onClick={() => setActiveTab('security')}
@@ -1481,7 +1494,15 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerAuth 
           </div>
         )}
         {/* ========================================================================= */}
-        {/* SUBTAB 6: PIN & SECURITY */}
+        {/* SUBTAB 7: PRODUCT MANAGEMENT */}
+        {/* ========================================================================= */}
+        {activeTab === 'products' && (
+          <div className="h-full overflow-hidden">
+            <AdminProductManager />
+          </div>
+        )}
+        {/* ========================================================================= */}
+        {/* SUBTAB 8: PIN & SECURITY */}
         {/* ========================================================================= */}
         {activeTab === 'security' && (
           <div className="space-y-5 max-w-xl mx-auto">

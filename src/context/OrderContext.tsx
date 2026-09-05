@@ -600,7 +600,11 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
       }
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-        new Notification(title.fr, { body: title.ar, tag: `order-${activeCustomerOrder.id}-${currentStatus}` });
+        try {
+          new Notification(title.fr, { body: title.ar, tag: `order-${activeCustomerOrder.id}-${currentStatus}` });
+        } catch {
+          // Some mobile browsers expose Notification but block its constructor.
+        }
       }
     }
     previousActiveStatus.current = currentStatus;

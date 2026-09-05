@@ -1,0 +1,6 @@
+{
+  "name": "CHENEB TACOS",
+  "description": "Menu digital interactif et commande en ligne pour le restaurant CHENEB TACOS — Tacos, Burgers, Pizzas, Shawarma et Plats.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

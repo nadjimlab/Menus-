@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CHENEB TACOS - Redirection</title>
+  <script>
+    // GitHub Pages SPA router redirection
+    // Converts paths like /Menus-/admin to /Menus-/?admin
+    (function() {
+      var pathname = window.location.pathname;
+      var search = window.location.search;
+      var hash = window.location.hash;
+
+      // Extract the repository name if hosted on user.github.io/repo/
+      var segments = pathname.replace(/^\//, '').split('/');
+      var repo = segments[0] || '';
+      var subpath = segments.slice(1).join('/');
+
+      var target = window.location.origin + '/' + repo + '/';
+      if (subpath) {
+        target += '?' + subpath;
+        if (search) {
+          target += '&' + search.replace(/^\?/, '');
+        }
+      } else if (search) {
+        target += search;
+      }
+      if (hash) {
+        target += hash;
+      }
+      window.location.replace(target);
+    })();
+  </script>
+</head>
+<body style="background-color: #0A0A0B; color: #FFFFFF; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+  <div style="text-align: center;">
+    <h2 style="color: #FF6321; font-weight: 900; letter-spacing: 1px;">CHENEB TACOS</h2>
+    <p style="color: #888; font-size: 14px;">Chargement en cours...</p>
+  </div>
+</body>
+</html>

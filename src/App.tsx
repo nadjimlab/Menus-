@@ -47,16 +47,26 @@ const MenuAppContent: React.FC = () => {
   const [lastOrderMessage, setLastOrderMessage] = useState<string | null>(null);
 
   // Open Product Customization Modal
-  // Listen for admin / kds secret URL parameters (e.g. ?admin=1 or ?kds=1)
+  // Listen for admin / kds URL patterns (path /admin, hash #admin, or query ?admin)
   useEffect(() => {
     try {
+      const pathname = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      const search = window.location.search.toLowerCase();
       const params = new URLSearchParams(window.location.search);
-      if (
+
+      const isAdminRequested =
+        pathname.includes('/admin') ||
+        pathname.endsWith('admin') ||
+        hash.includes('admin') ||
+        search.includes('admin') ||
+        params.has('admin') ||
+        params.has('kds') ||
+        params.has('kitchen') ||
         params.get('admin') === '1' ||
-        params.get('admin') === 'true' ||
-        params.get('kds') === '1' ||
-        params.get('kitchen') === '1'
-      ) {
+        params.get('admin') === 'true';
+
+      if (isAdminRequested) {
         setIsAdminOpen(true);
       }
     } catch {

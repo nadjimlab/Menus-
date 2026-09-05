@@ -11,7 +11,7 @@ interface HeaderProps {
   onOpenAdmin?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenSearch }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenSearch, onOpenAdmin }) => {
   const { totalCount, subtotal, setIsCartOpen } = useCart();
   const { config } = useConfig();
   const { language, toggleLanguage, isRTL } = useLanguage();
@@ -219,6 +219,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch }) => {
             >
               🎮 {isRTL ? 'لعبة شنب تاكوس (العب واربح)' : 'Jeu Cheneb Tacos (Gagnez des points)'}
             </button>
+
+            {onOpenAdmin && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenAdmin();
+                }}
+                className="w-full text-left px-4 py-2.5 text-xs font-bold text-gray-300 hover:text-white bg-[#141416] hover:bg-[#1A1A1C] border border-white/5 rounded-xl flex items-center justify-between"
+              >
+                <span>{isRTL ? '🔐 فضاء الإدارة والمطبخ' : '🔐 Espace Staff & Cuisine'}</span>
+                <span className="text-[10px] text-[#FF6321] font-mono font-bold bg-[#FF6321]/10 px-2 py-0.5 rounded-md">PIN 1234</span>
+              </button>
+            )}
 
             <div className="pt-2 mt-2 border-t border-white/10 flex flex-col gap-2">
               <a

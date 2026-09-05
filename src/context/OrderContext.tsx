@@ -4,6 +4,7 @@ import { soundFx } from '../utils/soundEffects';
 import confetti from 'canvas-confetti';
 import { db } from '../lib/firebase';
 import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { supabase } from '../lib/supabase';
 
 interface OrderContextType {
   orders: PlacedOrder[];
@@ -45,6 +46,55 @@ const API_ORDERS_URL = '/api/orders';
 
 // Keep the kitchen empty until a real customer or cashier creates an order.
 const INITIAL_DEMO_ORDERS: PlacedOrder[] = [];
+
+const orderToSupabaseRow = (order: PlacedOrder) => ({
+  id: order.id,
+  created_at: order.createdAt,
+  customer_info: order.customerInfo,
+  items: order.items,
+  subtotal: order.subtotal,
+  delivery_fee: order.deliveryFee,
+  total: order.total,
+  status: order.status,
+  estimated_minutes: order.estimatedMinutes,
+  is_paid: order.isPaid,
+  payment_method: order.paymentMethod,
+  cash_received: order.cashReceived ?? null,
+  change_given: order.changeGiven ?? null,
+  paid_at: order.paidAt ?? null,
+  status_updated_at: order.statusUpdatedAt ?? null,
+  source: order.source,
+  notes: order.customerInfo.notes ?? null,
+});
+
+const supabaseRowToOrder = (row: Record<string, any>): PlacedOrder => ({
+  id: row.id,
+  createdAt: row.created_at,
+  customerInfo: row.customer_info || {},
+  items: row.items || [],
+  subtotal: Number(row.subtotal || 0),
+  deliveryFee: Number(row.delivery_fee || 0),
+  total: Number(row.total || 0),
+  status: row.status,
+  estimatedMinutes: Number(row.estimated_minutes || 0),
+  isPaid: Boolean(row.is_paid),
+  paymentMethod: row.payment_method,
+  cashReceived: row.cash_received == null ? undefined : Number(row.cash_received),
+  changeGiven: row.change_given == null ? undefined : Number(row.change_given),
+  paidAt: row.paid_at || undefined,
+  statusUpdatedAt: row.status_updated_at || undefined,
+  source: row.source,
+});
+
+const saveOrderToSupabase = async (order: PlacedOrder) => {
+  if (!supabase) return false;
+  const { error } = await supabase.from('orders').upsert(orderToSupabaseRow(order));
+  if (error) {
+    console.error('Supabase order write failed:', error.message);
+    return false;
+  }
+  return true;
+};
 
 const syncOrderToApi = async (order: PlacedOrder) => {
   try {
@@ -141,6 +191,47 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   // Firebase Firestore Real-Time Synchronization
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    if (supabase) {
+      let active = true;
+      const loadOrders = async () => {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (error) {
+          console.error('Supabase order read failed:', error.message);
+          return;
+        }
+        if (active) setOrders((data || []).map((row) => supabaseRowToOrder(row)));
+      };
+      void loadOrders();
+      const channel = supabase
+        .channel('orders-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+          const next = supabaseRowToOrder((payload.new || payload.old) as Record<string, any>);
+          setOrders((current) => {
+            if (payload.eventType === 'INSERT') {
+              if (current.some((order) => order.id === next.id)) return current;
+              soundFx.playNewOrderNotification();
+              return [next, ...current];
+            }
+            if (payload.eventType === 'UPDATE') {
+              return current.map((order) => (order.id === next.id ? next : order));
+            }
+            return current.filter((order) => order.id !== next.id);
+          });
+        })
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.error('Supabase Realtime connection failed:', status);
+          }
+        });
+      return () => {
+        active = false;
+        void supabase.removeChannel(channel);
+      };
+    }
 
     let unsubscribe: (() => void) | null = null;
     try {
@@ -244,10 +335,13 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // Play chime
     soundFx.playNewOrderNotification();
 
-    // Save to Firestore for real-time cross-device sync
-    setDoc(doc(db, 'orders', orderId), newOrder).catch((err) =>
-      console.error('Failed to save order to Firestore:', err)
-    );
+    // Supabase is the shared cross-device source when configured.
+    if (!supabase) {
+      setDoc(doc(db, 'orders', orderId), newOrder).catch((err) =>
+        console.error('Failed to save order to Firestore:', err)
+      );
+    }
+    void saveOrderToSupabase(newOrder);
     void syncOrderToApi(newOrder);
 
     return newOrder;
@@ -301,10 +395,12 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setOrders(updated);
     soundFx.playNewOrderNotification();
 
-    // Save to Firestore for real-time sync
-    setDoc(doc(db, 'orders', orderId), newOrder).catch((err) =>
-      console.error('Failed to save caisse order to Firestore:', err)
-    );
+    if (!supabase) {
+      setDoc(doc(db, 'orders', orderId), newOrder).catch((err) =>
+        console.error('Failed to save caisse order to Firestore:', err)
+      );
+    }
+    void saveOrderToSupabase(newOrder);
     void syncOrderToApi(newOrder);
 
     return newOrder;
@@ -332,15 +428,17 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     setOrders(updated);
 
-    // Update in Firestore
-    const orderRef = doc(db, 'orders', orderId);
-    updateDoc(orderRef, {
+    const paymentUpdates = {
       isPaid: true,
       paymentMethod,
       cashReceived: cashReceived !== undefined ? cashReceived : null,
       changeGiven: changeGiven !== undefined ? changeGiven : null,
       paidAt: new Date().toISOString(),
-    }).catch((err) => console.error('Failed to update order payment in Firestore:', err));
+    };
+    if (!supabase) {
+      updateDoc(doc(db, 'orders', orderId), paymentUpdates).catch((err) => console.error('Failed to update order payment in Firestore:', err));
+    }
+    if (supabase) void supabase.from('orders').update({ is_paid: true, payment_method: paymentMethod, cash_received: paymentUpdates.cashReceived, change_given: paymentUpdates.changeGiven, paid_at: paymentUpdates.paidAt }).eq('id', orderId);
     void syncOrderPatchToApi(orderId, {
       isPaid: true,
       paymentMethod,
@@ -365,13 +463,15 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     setOrders(updated);
 
-    // Update in Firestore
-    const orderRef = doc(db, 'orders', orderId);
-    updateDoc(orderRef, {
+    const statusUpdates = {
       status,
       statusUpdatedAt: new Date().toISOString(),
       estimatedMinutes: status === 'ready' ? 0 : status === 'preparing' ? 10 : 10,
-    }).catch((err) => console.error('Failed to update order status in Firestore:', err));
+    };
+    if (!supabase) {
+      updateDoc(doc(db, 'orders', orderId), { status, statusUpdatedAt: statusUpdates.statusUpdatedAt, estimatedMinutes: statusUpdates.estimatedMinutes }).catch((err) => console.error('Failed to update order status in Firestore:', err));
+    }
+    if (supabase) void supabase.from('orders').update({ status, status_updated_at: statusUpdates.statusUpdatedAt, estimated_minutes: statusUpdates.estimatedMinutes }).eq('id', orderId);
     void syncOrderPatchToApi(orderId, { status, statusUpdatedAt: new Date().toISOString() });
 
     // If status is ready and matches current active customer, play sound + confetti
@@ -400,19 +500,22 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setActiveCustomerOrderId(null);
     }
 
-    deleteDoc(doc(db, 'orders', orderId)).catch((err) =>
-      console.error('Failed to delete order from Firestore:', err)
-    );
+    if (!supabase) {
+      deleteDoc(doc(db, 'orders', orderId)).catch((err) =>
+        console.error('Failed to delete order from Firestore:', err)
+      );
+    } else void supabase.from('orders').delete().eq('id', orderId);
   };
 
   const clearAllOrders = () => {
     setOrders([]);
     setActiveCustomerOrderId(null);
 
-    // Delete all orders in Firestore
-    orders.forEach((o) => {
-      deleteDoc(doc(db, 'orders', o.id)).catch(() => {});
-    });
+    if (!supabase) {
+      orders.forEach((o) => {
+        deleteDoc(doc(db, 'orders', o.id)).catch(() => {});
+      });
+    } else void supabase.from('orders').delete().not('id', 'is', null);
   };
 
   const clearActiveOrder = () => {

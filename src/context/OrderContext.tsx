@@ -216,6 +216,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
       };
       void loadOrders();
+      const refreshTimer = window.setInterval(() => void loadOrders(), 5000);
       const channel = supabase
         .channel('orders-live')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
@@ -240,6 +241,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         });
       return () => {
         active = false;
+        window.clearInterval(refreshTimer);
         void supabase.removeChannel(channel);
       };
     }
@@ -450,7 +452,11 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (!supabase) {
       updateDoc(doc(db, 'orders', orderId), paymentUpdates).catch((err) => console.error('Failed to update order payment in Firestore:', err));
     }
-    if (supabase) void supabase.from('orders').update({ is_paid: true, payment_method: paymentMethod, cash_received: paymentUpdates.cashReceived, change_given: paymentUpdates.changeGiven, paid_at: paymentUpdates.paidAt }).eq('id', orderId);
+    if (supabase) {
+      void supabase.from('orders').update({ is_paid: true, payment_method: paymentMethod, cash_received: paymentUpdates.cashReceived, change_given: paymentUpdates.changeGiven, paid_at: paymentUpdates.paidAt }).eq('id', orderId).then(({ error }) => {
+        if (error) console.error('Supabase payment update failed:', error.message);
+      });
+    }
     void syncOrderPatchToApi(orderId, {
       isPaid: true,
       paymentMethod,
@@ -483,7 +489,11 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (!supabase) {
       updateDoc(doc(db, 'orders', orderId), { status, statusUpdatedAt: statusUpdates.statusUpdatedAt, estimatedMinutes: statusUpdates.estimatedMinutes }).catch((err) => console.error('Failed to update order status in Firestore:', err));
     }
-    if (supabase) void supabase.from('orders').update({ status, status_updated_at: statusUpdates.statusUpdatedAt, estimated_minutes: statusUpdates.estimatedMinutes }).eq('id', orderId);
+    if (supabase) {
+      void supabase.from('orders').update({ status, status_updated_at: statusUpdates.statusUpdatedAt, estimated_minutes: statusUpdates.estimatedMinutes }).eq('id', orderId).then(({ error }) => {
+        if (error) console.error('Supabase status update failed:', error.message);
+      });
+    }
     void syncOrderPatchToApi(orderId, { status, statusUpdatedAt: new Date().toISOString() });
 
     // If status is ready and matches current active customer, play sound + confetti
@@ -535,6 +545,19 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const activeCustomerOrder = orders.find((o) => o.id === activeCustomerOrderId);
+
+  // Never expose a previous table's order when the same device scans a new table QR.
+  useEffect(() => {
+    if (
+      tableNumber &&
+      activeCustomerOrder &&
+      (activeCustomerOrder.customerInfo.deliveryType !== 'sur_place' ||
+        activeCustomerOrder.customerInfo.tableNumber !== tableNumber)
+    ) {
+      setActiveCustomerOrderId(null);
+      setIsOrderTrackerOpen(false);
+    }
+  }, [tableNumber, activeCustomerOrder?.id, activeCustomerOrder?.customerInfo.tableNumber]);
 
   return (
     <OrderContext.Provider

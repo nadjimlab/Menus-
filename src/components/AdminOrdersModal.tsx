@@ -87,13 +87,13 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
     if (!supabase) return;
     void supabase.auth.getSession().then(({ data }) => {
       const role = data.session?.user.app_metadata?.role;
-      setIsAuthenticated(Boolean(data.session));
+      setIsAuthenticated(role === 'manager' || role === 'cashier');
       setIsManagerMode(role === 'manager');
       setIsManagerAuthenticated(role === 'manager');
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       const role = session?.user.app_metadata?.role;
-      setIsAuthenticated(Boolean(session));
+      setIsAuthenticated(role === 'manager' || role === 'cashier');
       setIsManagerMode(role === 'manager');
       setIsManagerAuthenticated(role === 'manager');
     });

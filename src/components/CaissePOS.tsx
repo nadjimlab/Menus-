@@ -696,7 +696,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
             </div>
 
             {/* Payment & Cash Change Calculator */}
-            <div className="p-3 border-t border-white/5 bg-[#141416] shrink-0 space-y-3">
+            <div className="p-3 border-t border-white/5 bg-[#141416] shrink-0 space-y-3 max-h-[48dvh] overflow-y-auto overscroll-contain md:max-h-none md:overflow-visible">
               {/* Subtotal & Total */}
               <div className="space-y-1 text-xs">
                 <div className="flex justify-between text-gray-400">
@@ -818,7 +818,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
               )}
 
               {/* Action Buttons */}
-              <div className="shrink-0 space-y-1.5 pt-2 border-t border-white/5 bg-[#0D0D0E]">
+              <div className="shrink-0 sticky bottom-0 z-10 space-y-1.5 pt-2 border-t border-white/5 bg-[#0D0D0E]">
                 <button
                   type="button"
                   onClick={() => handleValidateTicket(true)}

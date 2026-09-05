@@ -4,6 +4,7 @@ import { useOrders } from '../context/OrderContext';
 import { useConfig } from '../context/ConfigContext';
 import { useLanguage } from '../context/LanguageContext';
 import { soundFx } from '../utils/soundEffects';
+import { supabase } from '../lib/supabase';
 import { MustacheIcon } from './MustacheLogo';
 import {
   DollarSign,
@@ -71,7 +72,7 @@ export const ManagerDashboard: React.FC = () => {
 
   const { orders } = useOrders();
   const { config } = useConfig();
-  const { isRTL } = useLanguage();
+  const { isRTL, toggleLanguage } = useLanguage();
 
   // Navigation subtabs
   const [activeTab, setActiveTab] = useState<'finance' | 'expenses' | 'employees' | 'attendance' | 'security'>('finance');
@@ -210,6 +211,7 @@ export const ManagerDashboard: React.FC = () => {
     setIsManagerAuthenticated(false);
     setPinInput('');
     soundFx.playClick();
+    void supabase?.auth.signOut();
   };
 
   // Add Expense
@@ -543,15 +545,24 @@ export const ManagerDashboard: React.FC = () => {
           </button>
         </div>
 
-        {/* Lock / Exit button */}
-        <button
-          onClick={handleLogout}
-          title={isRTL ? 'قفل لوحة المدير' : 'Verrouiller la session'}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-red-300 text-xs font-bold transition-all cursor-pointer"
-        >
-          <Lock className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">{isRTL ? 'قفل الفضاء' : 'Verrouiller'}</span>
-        </button>
+        {/* Language + lock actions */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={toggleLanguage}
+            title={isRTL ? 'التبديل إلى الفرنسية' : 'Passer à l’arabe'}
+            className="px-3 py-1.5 rounded-xl bg-[#1A1A1D] hover:bg-[#252528] border border-white/10 text-white text-xs font-black transition-all cursor-pointer"
+          >
+            {isRTL ? 'Français' : 'العربية'}
+          </button>
+          <button
+            onClick={handleLogout}
+            title={isRTL ? 'قفل لوحة المدير' : 'Verrouiller la session'}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-red-300 text-xs font-bold transition-all cursor-pointer"
+          >
+            <Lock className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{isRTL ? 'قفل الفضاء' : 'Verrouiller'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Content Area */}

@@ -119,10 +119,20 @@ begin
 end
 $$;
 
--- Verify the result.
+-- Verify the result. `relrowsecurity` is PostgreSQL's RLS flag.
 select
-  table_name,
-  row_security
-from information_schema.tables
-where table_schema = 'public'
-  and table_name = 'orders';
+  n.nspname as schema_name,
+  c.relname as table_name,
+  c.relrowsecurity as rls_enabled,
+  exists (
+    select 1
+    from pg_publication_tables pt
+    where pt.pubname = 'supabase_realtime'
+      and pt.schemaname = n.nspname
+      and pt.tablename = c.relname
+  ) as realtime_enabled
+from pg_class c
+join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'public'
+  and c.relname = 'orders'
+  and c.relkind = 'r';

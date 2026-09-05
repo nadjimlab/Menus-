@@ -13,6 +13,11 @@ type StaffAccount = {
   last_login_at: string | null;
 };
 
+type StaffApiAccount = Omit<StaffAccount, 'role'> & {
+  role?: StaffRole;
+  staff_role?: StaffRole;
+};
+
 type Props = {
   sessionToken: string;
   isRTL: boolean;
@@ -49,7 +54,7 @@ export const StaffAccessManager: React.FC<Props> = ({ sessionToken, isRTL }) => 
       },
       body: JSON.stringify({ sessionToken, ...body }),
     });
-    const result = await response.json() as { staff?: StaffAccount[] | StaffAccount; error?: string };
+    const result = await response.json() as { staff?: StaffApiAccount[] | StaffApiAccount; error?: string };
     if (!response.ok) throw new Error(result.error || (isRTL ? 'تعذر تنفيذ العملية' : 'Opération impossible'));
     return result;
   }, [isRTL, sessionToken]);
@@ -58,7 +63,11 @@ export const StaffAccessManager: React.FC<Props> = ({ sessionToken, isRTL }) => 
     setLoading(true);
     try {
       const result = await callStaffApi({ action: 'list' });
-      setStaff(Array.isArray(result.staff) ? result.staff : []);
+      const accounts = Array.isArray(result.staff) ? result.staff : [];
+      setStaff(accounts.map((account) => ({
+        ...account,
+        role: account.role ?? account.staff_role ?? 'cashier',
+      })));
     } catch (error) {
       setMessage({ type: 'error', text: error instanceof Error ? error.message : (isRTL ? 'تعذر تحميل العمال' : 'Impossible de charger le personnel') });
     } finally {
@@ -162,7 +171,7 @@ export const StaffAccessManager: React.FC<Props> = ({ sessionToken, isRTL }) => 
             <div key={account.id} className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-[#0F0F10] border border-white/5">
               <div className="flex items-center gap-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black ${account.is_active ? 'bg-emerald-500/15 text-emerald-300' : 'bg-gray-500/15 text-gray-500'}`}>{account.full_name.charAt(0)}</div>
-                <div><p className="text-sm font-bold text-white">{account.full_name}</p><p className="text-[11px] text-gray-400 font-mono">{account.employee_code} · {isRTL ? roleLabels[account.role].ar : roleLabels[account.role].fr}</p></div>
+                <div><p className="text-sm font-bold text-white">{account.full_name}</p><p className="text-[11px] text-gray-400 font-mono">{account.employee_code} · {isRTL ? (roleLabels[account.role] ?? roleLabels.cashier).ar : (roleLabels[account.role] ?? roleLabels.cashier).fr}</p></div>
               </div>
               <button onClick={() => void toggleActive(account)} className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer ${account.is_active ? 'bg-red-950/40 text-red-300 border border-red-500/20' : 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/20'}`}><Power className="w-3.5 h-3.5" />{account.is_active ? (isRTL ? 'تعطيل' : 'Désactiver') : (isRTL ? 'تفعيل' : 'Activer')}</button>
             </div>

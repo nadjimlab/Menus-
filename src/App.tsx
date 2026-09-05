@@ -21,7 +21,6 @@ import { OrderSuccessModal } from './components/OrderSuccessModal';
 import { ShareModal } from './components/ShareModal';
 import { AdminOrdersModal } from './components/AdminOrdersModal';
 import { OrderTrackerModal } from './components/OrderTrackerModal';
-import { TacoGameModal } from './components/TacoGameModal';
 import { SearchModal } from './components/SearchModal';
 import { RestaurantInfo } from './components/RestaurantInfo';
 import { StickyCartBar } from './components/StickyCartBar';
@@ -33,7 +32,7 @@ const MenuAppContent: React.FC = () => {
   const { config } = useConfig();
   const { products } = useProducts();
   const { isCheckoutOpen, setIsCheckoutOpen } = useCart();
-  const { isAdminOpen, setIsAdminOpen } = useOrders();
+  const { isAdminOpen, setIsAdminOpen, tableNumber } = useOrders();
   const { isRTL } = useLanguage();
 
   // Category & Filter state
@@ -50,6 +49,18 @@ const MenuAppContent: React.FC = () => {
   const [lastOrderMessage, setLastOrderMessage] = useState<string | null>(null);
 
   // Open Product Customization Modal
+  // Scroll to menu directly if a table QR code is scanned
+  useEffect(() => {
+    if (tableNumber) {
+      setTimeout(() => {
+        const el = document.getElementById('menu-section');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 500);
+    }
+  }, [tableNumber]);
+
   // Listen for admin / kds URL patterns (path /admin, hash #admin, or query ?admin)
   useEffect(() => {
     try {
@@ -332,10 +343,7 @@ const MenuAppContent: React.FC = () => {
       {/* 5. Live Customer Order Tracker Modal */}
       <OrderTrackerModal />
 
-      {/* 6. Mini Game: Taco Catch Challenge ("لعبة شنب تاكوس") */}
-      <TacoGameModal />
-
-      {/* 7. Product Sharing Modal */}
+      {/* 6. Product Sharing Modal */}
       <ShareModal
         product={productToShare}
         isOpen={isShareModalOpen}

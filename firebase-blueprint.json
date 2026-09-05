@@ -1,0 +1,33 @@
+{
+  "entities": {
+    "Order": {
+      "title": "Order",
+      "description": "Customer and POS orders for Cheneb Tacos",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "customerInfo": { "type": "object" },
+        "items": { "type": "array" },
+        "subtotal": { "type": "number" },
+        "deliveryFee": { "type": "number" },
+        "total": { "type": "number" },
+        "status": { "type": "string" },
+        "estimatedMinutes": { "type": "number" },
+        "isPaid": { "type": "boolean" },
+        "paymentMethod": { "type": "string" },
+        "cashReceived": { "type": "number" },
+        "changeGiven": { "type": "number" },
+        "notes": { "type": "string" },
+        "source": { "type": "string" }
+      },
+      "required": ["id", "createdAt", "total", "status"]
+    }
+  },
+  "firestore": {
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Real-time orders collection"
+    }
+  }
+}

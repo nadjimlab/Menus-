@@ -822,14 +822,14 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
 
         {/* Tab 2: CAISSE & POINT DE VENTE (POS) */}
         {activeTab === 'caisse' && (
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden flex flex-col">
             <CaissePOS onOrderPlaced={() => setActiveTab('orders')} />
           </div>
         )}
 
         {/* Tab 3: PRODUCTS & MENU MANAGER (CRUD) */}
         {activeTab === 'products' && (
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden flex flex-col">
             <AdminProductManager />
           </div>
         )}

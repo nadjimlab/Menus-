@@ -602,19 +602,66 @@ export const AdminProductManager: React.FC = () => {
                 </div>
               </div>
 
-              {/* Image selection with presets */}
+              {/* Image selection with presets and upload */}
               <div>
                 <label className="block text-xs font-bold text-gray-300 mb-1">
-                  {isRTL ? 'رابط صورة المنتج (أو اختر من النماذج الجاهزة أدناه)' : 'URL de la photo (ou choisissez un modèle ci-dessous)'}
+                  {isRTL ? 'صورة المنتج (تصوير أو رفع من الجهاز)' : 'Photo (Prendre une photo ou uploader)'}
                 </label>
                 <div className="flex gap-2">
-                  <input
-                    type="url"
-                    value={formData.image}
-                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                    placeholder="https://..."
-                    className="flex-1 px-3 py-2 bg-[#141416] border border-white/10 rounded-xl text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#FF6321]"
-                  />
+                  <div className="flex-1 flex gap-2">
+                    <input
+                      type="url"
+                      value={formData.image}
+                      onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                      placeholder="https://..."
+                      className="flex-1 px-3 py-2 bg-[#141416] border border-white/10 rounded-xl text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#FF6321]"
+                    />
+                    <label className="px-3 py-2 bg-[#1A1A1C] border border-white/10 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer hover:bg-[#252527] transition-colors shrink-0">
+                      <ImageIcon className="w-4 h-4 text-[#FF6321]" />
+                      <span>{isRTL ? 'رفع/تصوير' : 'Uploader'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const img = new Image();
+                              img.onload = () => {
+                                const canvas = document.createElement('canvas');
+                                const MAX_WIDTH = 400;
+                                const MAX_HEIGHT = 400;
+                                let width = img.width;
+                                let height = img.height;
+
+                                if (width > height) {
+                                  if (width > MAX_WIDTH) {
+                                    height *= MAX_WIDTH / width;
+                                    width = MAX_WIDTH;
+                                  }
+                                } else {
+                                  if (height > MAX_HEIGHT) {
+                                    width *= MAX_HEIGHT / height;
+                                    height = MAX_HEIGHT;
+                                  }
+                                }
+                                canvas.width = width;
+                                canvas.height = height;
+                                const ctx = canvas.getContext('2d');
+                                ctx?.drawImage(img, 0, 0, width, height);
+                                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                                setFormData((prev) => ({ ...prev, image: dataUrl }));
+                              };
+                              img.src = event.target?.result as string;
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
                   <div className="w-10 h-10 rounded-xl overflow-hidden bg-neutral-900 border border-white/10 shrink-0">
                     <img
                       src={formData.image}

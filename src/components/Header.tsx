@@ -18,7 +18,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, onOpenAdmin }) => 
   const {
     activeCustomerOrder,
     setIsOrderTrackerOpen,
-    setIsTacoGameOpen,
   } = useOrders();
 
   const [scrolled, setScrolled] = useState(false);
@@ -102,16 +101,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, onOpenAdmin }) => 
             >
               <Globe className="w-3.5 h-3.5 text-[#FF6321]" />
               <span className="font-heading uppercase">{language === 'fr' ? 'العربية' : 'FR'}</span>
-            </button>
-
-            {/* Mini Game Trigger Button */}
-            <button
-              onClick={() => setIsTacoGameOpen(true)}
-              title={isRTL ? 'العب لعبة شنب تاكوس واكسب نقاط' : 'Jeu Cheneb Tacos'}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-purple-950/60 hover:bg-purple-900/80 border border-purple-500/30 text-purple-300 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs"
-            >
-              <Gamepad2 className="w-3.5 h-3.5 text-purple-400" />
-              <span className="hidden sm:inline">{isRTL ? 'اللعبة 🎮' : 'Jeu 🎮'}</span>
             </button>
 
             {/* Customer Order Tracker & Notification Bell */}
@@ -221,16 +210,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, onOpenAdmin }) => 
               className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#1A1A1C] rounded-xl"
             >
               📍 {isRTL ? 'الموقع والتواصل' : 'Localisation & Contact'}
-            </button>
-
-            <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                setIsTacoGameOpen(true);
-              }}
-              className="w-full text-left px-4 py-2.5 text-sm font-bold text-purple-300 bg-purple-950/40 border border-purple-500/20 rounded-xl"
-            >
-              🎮 {isRTL ? 'لعبة شنب تاكوس (العب واربح)' : 'Jeu Cheneb Tacos (Gagnez des points)'}
             </button>
 
             {onOpenAdmin && (

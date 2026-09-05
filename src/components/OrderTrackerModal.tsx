@@ -23,7 +23,6 @@ export const OrderTrackerModal: React.FC = () => {
     activeCustomerOrder,
     isOrderTrackerOpen,
     setIsOrderTrackerOpen,
-    setIsTacoGameOpen,
   } = useOrders();
   const { config } = useConfig();
   const { isRTL } = useLanguage();
@@ -281,36 +280,7 @@ export const OrderTrackerModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Interactive Mini-Game Teaser while waiting */}
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-950/50 via-[#1A1A1C] to-[#141416] border border-purple-500/30 flex items-center justify-between gap-3 shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(147,51,234,0.4)]">
-                <Gamepad2 className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-black uppercase tracking-wider text-purple-300">
-                    {isRTL ? 'لعبة شنب تاكوس 🌮' : 'Jeu Cheneb Tacos 🌮'}
-                  </span>
-                  <Sparkles className="w-3 h-3 text-amber-400" />
-                </div>
-                <p className="text-[11px] text-gray-300 mt-0.5">
-                  {isRTL
-                    ? 'العب واجمع التاكوس بينما تنتظر وجبتك !'
-                    : 'Jouez et attrapez un max de tacos en attendant !'}
-                </p>
-              </div>
-            </div>
 
-            <button
-              onClick={() => {
-                setIsTacoGameOpen(true);
-              }}
-              className="shrink-0 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black uppercase tracking-wider shadow-md transition-all active:scale-95 cursor-pointer"
-            >
-              {isRTL ? 'العب الآن' : 'Jouer'}
-            </button>
-          </div>
 
           {/* Order Items Breakdown */}
           <div className="p-4 rounded-2xl bg-[#141416] border border-white/5 space-y-3">

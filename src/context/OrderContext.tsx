@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { PlacedOrder, OrderStatus, CustomerOrderInfo, CartItem, OrderItemRecord } from '../types';
 import { soundFx } from '../utils/soundEffects';
 import confetti from 'canvas-confetti';
+import { db } from '../lib/firebase';
+import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
 
 interface OrderContextType {
   orders: PlacedOrder[];
@@ -11,8 +13,6 @@ interface OrderContextType {
   setTableNumber: (table: string | null) => void;
   isOrderTrackerOpen: boolean;
   setIsOrderTrackerOpen: (open: boolean) => void;
-  isTacoGameOpen: boolean;
-  setIsTacoGameOpen: (open: boolean) => void;
   isAdminOpen: boolean;
   setIsAdminOpen: (open: boolean) => void;
   placeOrder: (customerInfo: CustomerOrderInfo, items: CartItem[], subtotal: number, deliveryFee: number) => PlacedOrder;
@@ -43,77 +43,7 @@ const ACTIVE_ORDER_ID_KEY = 'cheneb_active_customer_order_id_v2';
 const TABLE_STORAGE_KEY = 'cheneb_customer_table_v1';
 
 // Initial demo orders for the kitchen display
-const INITIAL_DEMO_ORDERS: PlacedOrder[] = [
-  {
-    id: 'CT-2104',
-    createdAt: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
-    customerInfo: {
-      customerName: 'Karim Brahimi',
-      customerPhone: '0661234567',
-      deliveryType: 'sur_place',
-      tableNumber: '3',
-      deliveryAddress: 'Table 3',
-      notes: 'Bien piquant avec sauce algérienne svp',
-    },
-    items: [
-      {
-        id: 'item-1',
-        nameFr: 'Tacos Français Double',
-        nameAr: 'طاكوس فرنسي دوبل',
-        sizeName: 'L',
-        quantity: 1,
-        unitPrice: 750,
-        totalPrice: 750,
-        sauces: ['Sauce Fromagère Maison', 'Sauce Algérienne'],
-        removedIngredients: [],
-        extras: ['Supplément Cheddar Fondu'],
-      },
-      {
-        id: 'item-2',
-        nameFr: 'Canette Coca-Cola 33cl',
-        nameAr: 'كوكاكولا 33 سل',
-        quantity: 1,
-        unitPrice: 100,
-        totalPrice: 100,
-      },
-    ],
-    subtotal: 850,
-    deliveryFee: 0,
-    total: 850,
-    status: 'preparing',
-    estimatedMinutes: 10,
-  },
-  {
-    id: 'CT-2103',
-    createdAt: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
-    customerInfo: {
-      customerName: 'Yassine M.',
-      customerPhone: '0550998877',
-      deliveryType: 'livraison',
-      deliveryAddress: 'Cité 19 Mars, en face la mosquée, El Oued',
-      notes: 'Appeler quand le livreur arrive',
-    },
-    items: [
-      {
-        id: 'item-3',
-        nameFr: 'Smash Burger Double Cheese',
-        nameAr: 'سماش برغر دبل تشيز',
-        sizeName: 'Double',
-        quantity: 2,
-        unitPrice: 650,
-        totalPrice: 1300,
-        sauces: ['Sauce Burger Biggy'],
-        removedIngredients: ['Oignons caramélisés'],
-        extras: [],
-      },
-    ],
-    subtotal: 1300,
-    deliveryFee: 150,
-    total: 1450,
-    status: 'ready',
-    estimatedMinutes: 0,
-  },
-];
+const INITIAL_DEMO_ORDERS: PlacedOrder[] = [];
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
@@ -163,7 +93,6 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   });
 
   const [isOrderTrackerOpen, setIsOrderTrackerOpen] = useState(false);
-  const [isTacoGameOpen, setIsTacoGameOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
 
   // Sync orders to localStorage
@@ -184,129 +113,48 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [activeCustomerOrderId]);
 
-  // Server Synchronization: Initial fetch, Server-Sent Events (SSE), and periodic polling
+  // Firebase Firestore Real-Time Synchronization
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // 1. Initial fetch from server
-    fetch('/api/orders')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.success && Array.isArray(data.orders)) {
-          setOrders(data.orders);
-        }
-      })
-      .catch((err) => {
-        console.warn('Initial server orders fetch failed, falling back to local cache', err);
-      });
-
-    // 2. Real-Time Server-Sent Events (SSE) for instant cross-device updates (phone <-> laptop)
-    let es: EventSource | null = null;
+    let unsubscribe: (() => void) | null = null;
     try {
-      es = new EventSource('/api/orders/events');
+      const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+      unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const loadedOrders: PlacedOrder[] = [];
+          snapshot.forEach((docSnap) => {
+            loadedOrders.push(docSnap.data() as PlacedOrder);
+          });
 
-      es.addEventListener('INIT', (event: MessageEvent) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (Array.isArray(payload.orders)) {
-            setOrders(payload.orders);
-          }
-        } catch {}
-      });
-
-      es.addEventListener('NEW_ORDER', (event: MessageEvent) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload.order) {
-            setOrders((prev) => {
-              if (prev.some((o) => o.id === payload.order.id)) return prev;
-              return [payload.order, ...prev];
-            });
-            // Sound chime for incoming orders
-            soundFx.playNewOrderNotification();
-          }
-        } catch {}
-      });
-
-      es.addEventListener('ORDERS_UPDATED', (event: MessageEvent) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (Array.isArray(payload.orders)) {
-            setOrders(payload.orders);
-          }
-        } catch {}
-      });
-
-      es.addEventListener('STATUS_CHANGED', (event: MessageEvent) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload.orderId === activeCustomerOrderId) {
-            if (payload.status === 'ready') {
-              soundFx.playOrderReadyCelebration();
-              try {
-                confetti({
-                  particleCount: 80,
-                  spread: 70,
-                  origin: { y: 0.6 },
-                });
-              } catch {}
-            } else if (payload.status === 'preparing') {
+          setOrders((prevOrders) => {
+            // Check if there's a new order compared to previous state to play sound notification
+            if (loadedOrders.length > prevOrders.length) {
               soundFx.playNewOrderNotification();
             }
+            return loadedOrders;
+          });
+        },
+        (error) => {
+          console.warn('Firestore snapshot error, falling back to localStorage', error);
+          // Fallback to localStorage if offline or permissions issue
+          const cached = localStorage.getItem(ORDERS_STORAGE_KEY);
+          if (cached) {
+            try {
+              setOrders(JSON.parse(cached));
+            } catch {}
           }
-        } catch {}
-      });
-    } catch (e) {
-      console.warn('SSE connection failed:', e);
+        }
+      );
+    } catch (err) {
+      console.warn('Failed to initialize Firestore listener:', err);
     }
 
-    // 3. Fallback background polling every 3.5 seconds
-    const pollInterval = setInterval(() => {
-      fetch('/api/orders')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data?.success && Array.isArray(data.orders)) {
-            setOrders(data.orders);
-          }
-        })
-        .catch(() => {});
-    }, 3500);
-
-    // 4. Same-browser storage and BroadcastChannel synchronization
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === ORDERS_STORAGE_KEY && e.newValue) {
-        try {
-          const updated = JSON.parse(e.newValue);
-          setOrders(updated);
-        } catch {
-          // ignore
-        }
-      }
-      if (e.key === ACTIVE_ORDER_ID_KEY) {
-        setActiveCustomerOrderId(e.newValue);
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-
-    let channel: BroadcastChannel | null = null;
-    try {
-      channel = new BroadcastChannel('cheneb_orders_channel');
-      channel.onmessage = (event) => {
-        const { type, payload } = event.data;
-        if (type === 'ORDERS_UPDATED' && payload.orders) {
-          setOrders(payload.orders);
-        }
-      };
-    } catch {}
-
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      if (channel) channel.close();
-      if (es) es.close();
-      clearInterval(pollInterval);
+      if (unsubscribe) unsubscribe();
     };
-  }, [activeCustomerOrderId]);
+  }, []);
 
   const setTableNumber = (table: string | null) => {
     setTableNumberState(table);
@@ -371,24 +219,10 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // Play chime
     soundFx.playNewOrderNotification();
 
-    // 1. Post to central Express backend for multi-device cross-network synchronization
-    fetch('/api/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newOrder),
-    }).catch((err) => console.error('Failed to post order to server:', err));
-
-    // 2. Broadcast across tabs
-    try {
-      const channel = new BroadcastChannel('cheneb_orders_channel');
-      channel.postMessage({
-        type: 'ORDERS_UPDATED',
-        payload: { orders: updated },
-      });
-      channel.close();
-    } catch {
-      // ignore
-    }
+    // Save to Firestore for real-time cross-device sync
+    setDoc(doc(db, 'orders', orderId), newOrder).catch((err) =>
+      console.error('Failed to save order to Firestore:', err)
+    );
 
     return newOrder;
   };
@@ -441,23 +275,10 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setOrders(updated);
     soundFx.playNewOrderNotification();
 
-    // Post to central Express backend
-    fetch('/api/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newOrder),
-    }).catch((err) => console.error('Failed to post caisse order to server:', err));
-
-    try {
-      const channel = new BroadcastChannel('cheneb_orders_channel');
-      channel.postMessage({
-        type: 'ORDERS_UPDATED',
-        payload: { orders: updated },
-      });
-      channel.close();
-    } catch {
-      // ignore
-    }
+    // Save to Firestore for real-time sync
+    setDoc(doc(db, 'orders', orderId), newOrder).catch((err) =>
+      console.error('Failed to save caisse order to Firestore:', err)
+    );
 
     return newOrder;
   };
@@ -484,28 +305,15 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     setOrders(updated);
 
-    // Patch to server
-    fetch(`/api/orders/${orderId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        isPaid: true,
-        paymentMethod,
-        cashReceived: cashReceived !== undefined ? cashReceived : undefined,
-        changeGiven: changeGiven !== undefined ? changeGiven : undefined,
-      }),
-    }).catch((err) => console.error('Failed to patch order payment on server:', err));
-
-    try {
-      const channel = new BroadcastChannel('cheneb_orders_channel');
-      channel.postMessage({
-        type: 'ORDERS_UPDATED',
-        payload: { orders: updated },
-      });
-      channel.close();
-    } catch {
-      // ignore
-    }
+    // Update in Firestore
+    const orderRef = doc(db, 'orders', orderId);
+    updateDoc(orderRef, {
+      isPaid: true,
+      paymentMethod,
+      cashReceived: cashReceived !== undefined ? cashReceived : null,
+      changeGiven: changeGiven !== undefined ? changeGiven : null,
+      paidAt: new Date().toISOString(),
+    }).catch((err) => console.error('Failed to update order payment in Firestore:', err));
   };
 
   const updateOrderStatus = (orderId: string, status: OrderStatus) => {
@@ -523,12 +331,13 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     setOrders(updated);
 
-    // Patch status to server
-    fetch(`/api/orders/${orderId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    }).catch((err) => console.error('Failed to patch order status on server:', err));
+    // Update in Firestore
+    const orderRef = doc(db, 'orders', orderId);
+    updateDoc(orderRef, {
+      status,
+      statusUpdatedAt: new Date().toISOString(),
+      estimatedMinutes: status === 'ready' ? 0 : status === 'preparing' ? 10 : 10,
+    }).catch((err) => console.error('Failed to update order status in Firestore:', err));
 
     // If status is ready and matches current active customer, play sound + confetti
     if (orderId === activeCustomerOrderId) {
@@ -547,22 +356,6 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         soundFx.playNewOrderNotification();
       }
     }
-
-    // Broadcast across tabs
-    try {
-      const channel = new BroadcastChannel('cheneb_orders_channel');
-      channel.postMessage({
-        type: 'ORDERS_UPDATED',
-        payload: { orders: updated },
-      });
-      channel.postMessage({
-        type: 'STATUS_CHANGED',
-        payload: { orderId, status },
-      });
-      channel.close();
-    } catch {
-      // ignore
-    }
   };
 
   const deleteOrder = (orderId: string) => {
@@ -572,18 +365,19 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setActiveCustomerOrderId(null);
     }
 
-    fetch(`/api/orders/${orderId}`, {
-      method: 'DELETE',
-    }).catch((err) => console.error('Failed to delete order on server:', err));
+    deleteDoc(doc(db, 'orders', orderId)).catch((err) =>
+      console.error('Failed to delete order from Firestore:', err)
+    );
   };
 
   const clearAllOrders = () => {
     setOrders([]);
     setActiveCustomerOrderId(null);
 
-    fetch('/api/orders', {
-      method: 'DELETE',
-    }).catch((err) => console.error('Failed to clear orders on server:', err));
+    // Delete all orders in Firestore
+    orders.forEach((o) => {
+      deleteDoc(doc(db, 'orders', o.id)).catch(() => {});
+    });
   };
 
   const clearActiveOrder = () => {
@@ -602,8 +396,6 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setTableNumber,
         isOrderTrackerOpen,
         setIsOrderTrackerOpen,
-        isTacoGameOpen,
-        setIsTacoGameOpen,
         isAdminOpen,
         setIsAdminOpen,
         placeOrder,

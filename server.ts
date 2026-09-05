@@ -1,167 +1,68 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
-import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
+import { initializeApp, getApps } from 'firebase/app';
+import { getFirestore, doc, setDoc, updateDoc } from 'firebase/firestore';
+import fs from 'fs';
 
 const app = express();
 const PORT = 3000;
 
 app.use(express.json());
 
-// Persistent storage file
-const DATA_DIR = path.join(process.cwd(), 'data');
-const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
-
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-// Initial demo seed orders if file does not exist
-const INITIAL_DEMO_ORDERS: any[] = [];
-
-let orders: any[] = [];
-
-// Load orders from disk or initialize
-try {
-  if (fs.existsSync(ORDERS_FILE)) {
-    const raw = fs.readFileSync(ORDERS_FILE, 'utf-8');
-    orders = JSON.parse(raw);
-  } else {
-    orders = [...INITIAL_DEMO_ORDERS];
-    fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2));
-  }
-} catch (err) {
-  console.error('Failed to load orders file, using memory seed:', err);
-  orders = [...INITIAL_DEMO_ORDERS];
-}
-
-function saveOrdersToDisk() {
-  try {
-    fs.writeFileSync(ORDERS_FILE, JSON.stringify(orders, null, 2));
-  } catch (err) {
-    console.error('Failed to save orders to disk:', err);
-  }
-}
-
-// SSE (Server-Sent Events) connected clients
-const sseClients = new Set<Response>();
-
-function broadcastSse(eventType: string, payload: any) {
-  const message = `event: ${eventType}\ndata: ${JSON.stringify(payload)}\n\n`;
-  for (const client of sseClients) {
-    try {
-      client.write(message);
-    } catch {
-      sseClients.delete(client);
-    }
-  }
-}
-
 // --- API ROUTES ---
 
 // Health check
 app.get('/api/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', ordersCount: orders.length, connectedClients: sseClients.size });
+  res.json({ status: 'ok', database: 'firebase' });
 });
 
-// SSE Stream for Real-Time Synchronization across Phones, Tablets, and PCs
-app.get('/api/orders/events', (req: Request, res: Response) => {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-  res.flushHeaders();
-
-  // Send initial orders payload
-  res.write(`event: INIT\ndata: ${JSON.stringify({ orders })}\n\n`);
-
-  sseClients.add(res);
-
-  // Keep-alive ping every 20 seconds
-  const pingInterval = setInterval(() => {
-    try {
-      res.write(': ping\n\n');
-    } catch {
-      clearInterval(pingInterval);
-      sseClients.delete(res);
+// Bridge for OLD cached mobile clients
+let _db: any = null;
+function getDb() {
+  if (_db) return _db;
+  try {
+    const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+    if (fs.existsSync(configPath)) {
+      const configJson = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      const fbApp = getApps().length === 0 ? initializeApp(configJson) : getApps()[0];
+      _db = getFirestore(fbApp, configJson.firestoreDatabaseId || undefined);
+      return _db;
     }
-  }, 20000);
-
-  req.on('close', () => {
-    clearInterval(pingInterval);
-    sseClients.delete(res);
-  });
-});
-
-// GET all orders
-app.get('/api/orders', (_req: Request, res: Response) => {
-  res.json({ success: true, orders });
-});
-
-// POST new order (placed from Table QR scan, web, or caisse)
-app.post('/api/orders', (req: Request, res: Response) => {
-  const newOrder = req.body;
-  if (!newOrder || !newOrder.id) {
-    res.status(400).json({ success: false, error: 'Invalid order payload' });
-    return;
+  } catch (err) {
+    console.error('Failed to init Firebase in server:', err);
   }
+  return null;
+}
 
-  // Prepend new order to list
-  orders = [newOrder, ...orders.filter((o) => o.id !== newOrder.id)];
-  saveOrdersToDisk();
-
-  // Broadcast to all connected screens (Admin laptop, kitchen, caisse, other phones)
-  broadcastSse('ORDERS_UPDATED', { orders, newOrder });
-  broadcastSse('NEW_ORDER', { order: newOrder });
-
-  res.status(201).json({ success: true, order: newOrder });
-});
-
-// PATCH order status or payment
-app.patch('/api/orders/:id', (req: Request, res: Response) => {
-  const { id } = req.params;
-  const updates = req.body;
-
-  const index = orders.findIndex((o) => o.id === id);
-  if (index === -1) {
-    res.status(404).json({ success: false, error: 'Order not found' });
-    return;
+app.post('/api/orders', async (req: Request, res: Response) => {
+  try {
+    const database = getDb();
+    const newOrder = req.body;
+    if (database && newOrder && newOrder.id) {
+      await setDoc(doc(database, 'orders', newOrder.id), newOrder);
+      res.status(201).json({ success: true, order: newOrder });
+      return;
+    }
+  } catch (err) {
+    console.error('Bridge POST /api/orders error:', err);
   }
+  res.status(400).json({ success: false });
+});
 
-  orders[index] = {
-    ...orders[index],
-    ...updates,
-    updatedAt: new Date().toISOString(),
-  };
-
-  saveOrdersToDisk();
-
-  broadcastSse('ORDERS_UPDATED', { orders, updatedOrder: orders[index] });
-  if (updates.status) {
-    broadcastSse('STATUS_CHANGED', { orderId: id, status: updates.status, order: orders[index] });
+app.patch('/api/orders/:id', async (req: Request, res: Response) => {
+  try {
+    const database = getDb();
+    const updates = req.body;
+    if (database) {
+      await updateDoc(doc(database, 'orders', req.params.id), updates);
+      res.json({ success: true });
+      return;
+    }
+  } catch (err) {
+    console.error('Bridge PATCH error:', err);
   }
-
-  res.json({ success: true, order: orders[index] });
-});
-
-// DELETE single order
-app.delete('/api/orders/:id', (req: Request, res: Response) => {
-  const { id } = req.params;
-  orders = orders.filter((o) => o.id !== id);
-  saveOrdersToDisk();
-
-  broadcastSse('ORDERS_UPDATED', { orders, deletedId: id });
-  res.json({ success: true });
-});
-
-// DELETE / CLEAR all orders
-app.delete('/api/orders', (_req: Request, res: Response) => {
-  orders = [];
-  saveOrdersToDisk();
-
-  broadcastSse('ORDERS_UPDATED', { orders: [] });
-  res.json({ success: true });
+  res.status(400).json({ success: false });
 });
 
 // --- VITE MIDDLEWARE & STATIC SERVING ---
@@ -174,8 +75,15 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+      }
+    }));
     app.get('*', (_req: Request, res: Response) => {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

@@ -35,6 +35,7 @@ import {
   Calculator,
   Utensils,
   Banknote,
+  LayoutGrid,
 } from 'lucide-react';
 
 interface AdminOrdersModalProps {
@@ -333,6 +334,18 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
 
   // Unpaid count for caisse badge
   const unpaidOrdersCount = orders.filter((o) => !o.isPaid && o.status !== 'cancelled').length;
+  const activeTableGroups = Array.from(
+    orders
+      .filter((order) => order.customerInfo.deliveryType === 'sur_place' && !['completed', 'cancelled'].includes(order.status))
+      .reduce((groups, order) => {
+        const table = order.customerInfo.tableNumber || '?';
+        const current = groups.get(table) || [];
+        groups.set(table, [...current, order]);
+        return groups;
+      }, new Map<string, PlacedOrder[]>())
+  )
+    .map(([table, tableOrders]) => [table, [...tableOrders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())] as const)
+    .sort(([a], [b]) => Number(a) - Number(b));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-3 md:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
@@ -553,6 +566,72 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
                 )}
               </div>
             </div>
+
+            {/* Active tables overview */}
+            {activeTableGroups.length > 0 && (
+              <div className="px-3 sm:px-4 pt-3 bg-[#141416] shrink-0">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <LayoutGrid className="w-4 h-4 text-[#FF6321]" />
+                    <h3 className="text-xs font-black uppercase tracking-wider text-white">
+                      {isRTL ? 'الطاولات النشطة' : 'Tables actives'}
+                    </h3>
+                    <span className="px-1.5 py-0.5 rounded-md bg-[#FF6321]/15 text-[#FF6321] text-[10px] font-black">
+                      {activeTableGroups.length}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-gray-500">
+                    {isRTL ? 'الطلبات غير المكتملة فقط' : 'Commandes non terminées uniquement'}
+                  </span>
+                </div>
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-3">
+                  {activeTableGroups.map(([table, tableOrders]) => {
+                    const latest = tableOrders[0];
+                    const statusLabel = latest.status === 'received'
+                      ? (isRTL ? 'جديد' : 'Nouveau')
+                      : latest.status === 'preparing'
+                      ? (isRTL ? 'قيد التحضير' : 'En cuisine')
+                      : (isRTL ? 'جاهز' : 'Prête');
+                    const statusClass = latest.status === 'received'
+                      ? 'border-amber-500/50 bg-amber-500/10 text-amber-300'
+                      : latest.status === 'preparing'
+                      ? 'border-[#FF6321]/60 bg-[#FF6321]/10 text-[#FF9A73]'
+                      : 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300';
+
+                    return (
+                      <div key={table} className={`min-w-[190px] rounded-2xl border p-3 ${statusClass}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-xl bg-black/30 flex items-center justify-center">
+                              <UtensilsCrossed className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="text-sm font-black text-white">{isRTL ? `طاولة ${table}` : `Table ${table}`}</div>
+                              <div className="text-[10px] opacity-80">{tableOrders.length} {isRTL ? 'طلب نشط' : 'active'}</div>
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-black">{statusLabel}</span>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between gap-2 text-[10px]">
+                          <span className="font-mono opacity-80">{latest.id}</span>
+                          <span className="font-black text-white">{latest.total} {config.currency}</span>
+                        </div>
+                        <button
+                          onClick={() => handleStatusAdvance(latest.id, latest.status)}
+                          className="w-full mt-2 py-1.5 rounded-lg bg-black/25 hover:bg-black/40 text-[10px] font-black text-white transition-colors cursor-pointer"
+                        >
+                          {latest.status === 'received'
+                            ? (isRTL ? 'بدء التحضير' : 'Démarrer')
+                            : latest.status === 'preparing'
+                            ? (isRTL ? 'تحديد كجاهز' : 'Marquer prête')
+                            : (isRTL ? 'إنهاء الطلب' : 'Terminer')}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Orders Cards Grid */}
             <div className="flex-1 p-4 overflow-y-auto space-y-4 no-scrollbar">

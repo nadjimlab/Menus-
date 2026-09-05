@@ -105,21 +105,63 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginErrorMessage('');
+
+    if (cashierLoginMode) {
+      if (!cashierName.trim() || !/^\d{4}$/.test(cashierCode)) {
+        setLoginErrorMessage(isRTL ? 'أدخل اسم الموظف ورمزًا من 4 أرقام' : 'Saisissez le nom et un code de 4 chiffres');
+        return;
+      }
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+      const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+      if (!supabaseUrl || !publishableKey) {
+        setLoginErrorMessage(isRTL ? 'إعدادات Supabase غير مكتملة' : 'La configuration Supabase est incomplète');
+        return;
+      }
+
+      setLoginLoading(true);
+      try {
+        const response = await fetch(`${supabaseUrl}/functions/v1/verify-cashier-pin`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: publishableKey,
+            Authorization: `Bearer ${publishableKey}`,
+          },
+          body: JSON.stringify({
+            employeeName: cashierName.trim(),
+            pin: cashierCode,
+          }),
+        });
+        const result = await response.json() as { staff?: { role?: string }; error?: string };
+
+        if (!response.ok || !result.staff || result.staff.role !== 'cashier') {
+          setLoginErrorMessage(result.error || (isRTL ? 'اسم الكاشير أو الرمز غير صحيح' : 'Nom ou code caissier incorrect'));
+          return;
+        }
+
+        setIsAuthenticated(true);
+        setIsManagerMode(false);
+        setIsManagerAuthenticated(false);
+      } catch {
+        setLoginErrorMessage(isRTL ? 'تعذر الاتصال بخدمة التحقق' : 'Impossible de joindre le service de vérification');
+      } finally {
+        setLoginLoading(false);
+      }
+      return;
+    }
+
     if (!supabase) {
       setLoginErrorMessage(isRTL ? 'Supabase Auth غير مهيأ في إعدادات الموقع' : 'Supabase Auth n’est pas configuré');
       return;
     }
+
     setLoginLoading(true);
-    setLoginErrorMessage('');
-    const cashierEmail = (import.meta.env.VITE_CASHIER_AUTH_EMAIL as string | undefined) || 'cashier@chenebtacos.dz';
-    const email = cashierLoginMode ? cashierEmail : loginEmail.trim();
-    const password = cashierLoginMode ? `cheneb-pin:${cashierCode}` : loginPassword;
-    if (cashierLoginMode && (!cashierName.trim() || !/^\d{4}$/.test(cashierCode))) {
-      setLoginLoading(false);
-      setLoginErrorMessage(isRTL ? 'أدخل اسم الموظف ورمزًا من 4 أرقام' : 'Saisissez le nom et un code de 4 chiffres');
-      return;
-    }
-    const { data, error } = await supabase.auth.signInWithPassword({ email: email || '', password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: loginEmail.trim(),
+      password: loginPassword,
+    });
     setLoginLoading(false);
     if (error || !data.user) {
       setLoginErrorMessage(isRTL ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Email ou mot de passe incorrect');

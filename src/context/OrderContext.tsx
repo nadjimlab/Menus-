@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { PlacedOrder, OrderStatus, CustomerOrderInfo, CartItem, OrderItemRecord } from '../types';
 import { soundFx } from '../utils/soundEffects';
 import confetti from 'canvas-confetti';
@@ -169,6 +169,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const [isOrderTrackerOpen, setIsOrderTrackerOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const pendingSupabaseOrderIds = useRef(new Set<string>());
 
   // Sync orders to localStorage
   useEffect(() => {
@@ -203,7 +204,16 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           console.error('Supabase order read failed:', error.message);
           return;
         }
-        if (active) setOrders((data || []).map((row) => supabaseRowToOrder(row)));
+        if (active) {
+          const remoteOrders = (data || []).map((row) => supabaseRowToOrder(row));
+          setOrders((current) => {
+            const remoteIds = new Set(remoteOrders.map((order) => order.id));
+            const stillPending = current.filter(
+              (order) => pendingSupabaseOrderIds.current.has(order.id) && !remoteIds.has(order.id)
+            );
+            return [...stillPending, ...remoteOrders];
+          });
+        }
       };
       void loadOrders();
       const channel = supabase
@@ -213,6 +223,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           setOrders((current) => {
             if (payload.eventType === 'INSERT') {
               if (current.some((order) => order.id === next.id)) return current;
+              pendingSupabaseOrderIds.current.delete(next.id);
               soundFx.playNewOrderNotification();
               return [next, ...current];
             }
@@ -331,6 +342,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const updated = [newOrder, ...orders];
     setOrders(updated);
     setActiveCustomerOrderId(orderId);
+    if (supabase) pendingSupabaseOrderIds.current.add(orderId);
 
     // Play chime
     soundFx.playNewOrderNotification();

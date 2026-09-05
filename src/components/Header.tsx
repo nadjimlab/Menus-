@@ -221,7 +221,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, onOpenAdmin }) => 
                 className="w-full text-left px-4 py-2.5 text-xs font-bold text-gray-300 hover:text-white bg-[#141416] hover:bg-[#1A1A1C] border border-white/5 rounded-xl flex items-center justify-between"
               >
                 <span>{isRTL ? '🔐 فضاء الإدارة والمطبخ' : '🔐 Espace Staff & Cuisine'}</span>
-                <span className="text-[10px] text-[#FF6321] font-mono font-bold bg-[#FF6321]/10 px-2 py-0.5 rounded-md">PIN 1234</span>
+                <span className="text-[10px] text-emerald-400 font-bold bg-emerald-400/10 px-2 py-0.5 rounded-md">{isRTL ? 'جلسة آمنة' : 'Session sécurisée'}</span>
               </button>
             )}
 

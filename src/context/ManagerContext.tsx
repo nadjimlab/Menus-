@@ -7,15 +7,9 @@ import {
 } from '../types/manager';
 
 interface ManagerContextType {
-  // Authentication
+  // Authentication is handled by the signed Supabase staff session.
   isManagerAuthenticated: boolean;
   setIsManagerAuthenticated: (auth: boolean) => void;
-  managerPin: string;
-  staffPin: string;
-  verifyManagerPin: (pin: string) => boolean;
-  verifyStaffPin: (pin: string) => boolean;
-  updateManagerPin: (newPin: string) => void;
-  updateStaffPin: (newPin: string) => void;
 
   // Expenses & Purchases
   expenses: ExpenseRecord[];
@@ -42,8 +36,6 @@ interface ManagerContextType {
 }
 
 const MANAGER_AUTH_KEY = 'cheneb_manager_auth_session';
-const MANAGER_PIN_KEY = 'cheneb_manager_pin_code';
-const STAFF_PIN_KEY = 'cheneb_staff_pin_code';
 const EXPENSES_KEY = 'cheneb_manager_expenses_v1';
 const EMPLOYEES_KEY = 'cheneb_manager_employees_v1';
 const PAYROLL_KEY = 'cheneb_manager_payroll_v1';
@@ -114,46 +106,6 @@ export const ManagerProvider: React.FC<{ children: ReactNode }> = ({ children })
       } else {
         sessionStorage.removeItem(MANAGER_AUTH_KEY);
       }
-    }
-  };
-
-  // Stored PINs
-  const [managerPin, setManagerPinState] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(MANAGER_PIN_KEY) || '9999';
-    }
-    return '9999';
-  });
-
-  const [staffPin, setStaffPinState] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(STAFF_PIN_KEY) || '1234';
-    }
-    return '1234';
-  });
-
-  // Verify functions
-  const verifyManagerPin = (pin: string): boolean => {
-    return pin.trim() === managerPin.trim();
-  };
-
-  const verifyStaffPin = (pin: string): boolean => {
-    return pin.trim() === staffPin.trim();
-  };
-
-  const updateManagerPin = (newPin: string) => {
-    if (!newPin || newPin.trim().length < 4) return;
-    setManagerPinState(newPin.trim());
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(MANAGER_PIN_KEY, newPin.trim());
-    }
-  };
-
-  const updateStaffPin = (newPin: string) => {
-    if (!newPin || newPin.trim().length < 4) return;
-    setStaffPinState(newPin.trim());
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(STAFF_PIN_KEY, newPin.trim());
     }
   };
 
@@ -304,12 +256,6 @@ export const ManagerProvider: React.FC<{ children: ReactNode }> = ({ children })
       value={{
         isManagerAuthenticated,
         setIsManagerAuthenticated,
-        managerPin,
-        staffPin,
-        verifyManagerPin,
-        verifyStaffPin,
-        updateManagerPin,
-        updateStaffPin,
         expenses,
         addExpense,
         updateExpense,

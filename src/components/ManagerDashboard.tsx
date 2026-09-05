@@ -60,11 +60,6 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerAuth 
   const {
     isManagerAuthenticated,
     setIsManagerAuthenticated,
-    managerPin,
-    staffPin,
-    verifyManagerPin,
-    updateManagerPin,
-    updateStaffPin,
     expenses,
     addExpense,
     deleteExpense,
@@ -85,10 +80,6 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerAuth 
 
   // Navigation subtabs
   const [activeTab, setActiveTab] = useState<'finance' | 'expenses' | 'employees' | 'attendance' | 'security' | 'staff' | 'qrcodes' | 'products'>('finance');
-
-  // PIN input state for Manager Lock
-  const [pinInput, setPinInput] = useState('');
-  const [pinError, setPinError] = useState(false);
 
   // Filter & Search states
   const [expenseSearch, setExpenseSearch] = useState('');
@@ -126,11 +117,6 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerAuth 
     date: new Date().toISOString().split('T')[0],
     notes: '',
   });
-
-  // Security Form
-  const [newManagerPinInput, setNewManagerPinInput] = useState('');
-  const [newStaffPinInput, setNewStaffPinInput] = useState('');
-  const [pinChangeSuccess, setPinChangeSuccess] = useState<string | null>(null);
 
   // Selected date for attendance
   const [selectedAttendanceDate, setSelectedAttendanceDate] = useState<string>(
@@ -185,41 +171,8 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerAuth 
     return methods;
   }, [todayOrders]);
 
-  // Handle PIN Submission
-  const handlePinSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (verifyManagerPin(pinInput)) {
-      setIsManagerAuthenticated(true);
-      setPinError(false);
-      soundFx.playCashRegister();
-    } else {
-      setPinError(true);
-      setPinInput('');
-      soundFx.playClick();
-    }
-  };
-
-  const handlePinDigit = (digit: string) => {
-    if (pinInput.length < 4) {
-      const next = pinInput + digit;
-      setPinInput(next);
-      setPinError(false);
-      soundFx.playClick();
-      if (next.length === 4) {
-        if (verifyManagerPin(next)) {
-          setIsManagerAuthenticated(true);
-          soundFx.playCashRegister();
-        } else {
-          setPinError(true);
-          setTimeout(() => setPinInput(''), 600);
-        }
-      }
-    }
-  };
-
   const handleLogout = () => {
     setIsManagerAuthenticated(false);
-    setPinInput('');
     soundFx.playClick();
     void supabase?.auth.signOut();
   };
@@ -376,8 +329,9 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerAuth 
     delivery: { ar: 'سائق توصيل سريع', fr: 'Livreur' },
   };
 
-  // 1. LOCKED MANAGER SCREEN (If not authenticated)
-  if (!isManagerAuthenticated) {
+  // 1. LOCKED MANAGER SCREEN. A server-issued staff session is the preferred path.
+  const hasServerManagerSession = Boolean(managerAuth?.sessionToken);
+  if (!isManagerAuthenticated && !hasServerManagerSession) {
     return (
       <div className="flex-1 flex items-center justify-center p-4 min-h-[500px]">
         <div className="w-full max-w-md bg-[#121214] border border-white/10 rounded-3xl p-6 sm:p-8 text-center shadow-2xl animate-in zoom-in-95 duration-200">
@@ -394,78 +348,20 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerAuth 
           </h3>
           <p className="text-xs text-gray-400 leading-relaxed mb-6">
             {isRTL
-              ? 'مساحة سرية ومحمية بكلمة سر خاصة بالمدير لتسيير المبيعات، المدخول، المشتريات، الأجور، وتتبع حضور الموظفين.'
-              : 'Espace sécurisé par code PIN Manager pour piloter les ventes, dépenses fournisseurs, salaires et suivi du personnel.'}
+              ? 'هذه المنطقة محمية بمصادقة خادمية. سجّل الدخول من بوابة الموظفين الموثقة للوصول إلى المبيعات والمدخول والمشتريات والأجور.'
+              : 'Cette zone est protégée par une authentification serveur. Connectez-vous via la session staff sécurisée pour accéder aux ventes, dépenses et paie.'}
           </p>
 
-          <form onSubmit={handlePinSubmit} className="space-y-4">
-            <div className="flex justify-center gap-3 mb-2">
-              {[0, 1, 2, 3].map((idx) => {
-                const filled = pinInput.length > idx;
-                return (
-                  <div
-                    key={idx}
-                    className={`w-12 h-14 rounded-2xl border flex items-center justify-center text-2xl font-black font-mono transition-all ${
-                      pinError
-                        ? 'border-red-500 bg-red-950/30 text-red-400 animate-shake'
-                        : filled
-                        ? 'border-amber-500 bg-amber-500/10 text-white shadow-[0_0_12px_rgba(245,158,11,0.3)]'
-                        : 'border-white/10 bg-[#1A1A1D] text-gray-600'
-                    }`}
-                  >
-                    {filled ? '•' : ''}
-                  </div>
-                );
-              })}
-            </div>
-
-            {pinError && (
-              <p className="text-xs text-red-400 font-bold flex items-center justify-center gap-1.5 animate-shake">
-                <AlertCircle className="w-3.5 h-3.5" />
-                <span>{isRTL ? 'رمز مرور المدير غير صحيح' : 'Code PIN Manager incorrect'}</span>
-              </p>
-            )}
-
-            {/* Keypad */}
-            <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto pt-2">
-              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
-                <button
-                  key={digit}
-                  type="button"
-                  onClick={() => handlePinDigit(digit)}
-                  className="h-12 rounded-2xl bg-[#1A1A1D] hover:bg-[#252528] active:bg-amber-500 active:text-black border border-white/5 text-white font-black text-lg transition-colors cursor-pointer"
-                >
-                  {digit}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => setPinInput('')}
-                className="h-12 rounded-2xl bg-[#1A1A1D] hover:bg-[#252528] border border-white/5 text-xs font-bold text-gray-400 hover:text-white transition-colors cursor-pointer"
-              >
-                {isRTL ? 'مسح' : 'Effacer'}
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePinDigit('0')}
-                className="h-12 rounded-2xl bg-[#1A1A1D] hover:bg-[#252528] active:bg-amber-500 active:text-black border border-white/5 text-white font-black text-lg transition-colors cursor-pointer"
-              >
-                0
-              </button>
-              <button
-                type="submit"
-                className="h-12 rounded-2xl bg-linear-to-r from-amber-500 to-[#FF6321] hover:opacity-90 text-black font-black text-xs uppercase flex items-center justify-center transition-all cursor-pointer shadow-md"
-              >
-                {isRTL ? 'دخول' : 'Entrer'}
-              </button>
-            </div>
-
-            <div className="pt-4 text-center">
-              <span className="text-[11px] text-gray-500">
-                {isRTL ? 'الرمز الافتراضي للمدير: 9999 (يمكنك تغييره داخل اللوحة)' : 'Code PIN Manager par défaut : 9999'}
-              </span>
-            </div>
-          </form>
+          <div className="rounded-2xl bg-amber-950/30 border border-amber-800/40 p-4 text-start space-y-2">
+            <p className="text-sm font-black text-amber-200">
+              {isRTL ? 'الدخول متاح عبر جلسة الموظف الآمنة فقط' : 'Accès via session staff sécurisée uniquement'}
+            </p>
+            <p className="text-xs text-amber-100/70 leading-relaxed">
+              {isRTL
+                ? 'لا توجد كلمة مرور افتراضية أو لوحة أرقام محلية. ارجع إلى بوابة الإدارة وسجّل الدخول بحساب موظف مصادق عليه من Supabase.'
+                : 'Aucun code par défaut ni clavier local. Revenez au portail d’administration et connectez-vous avec un compte staff validé par Supabase.'}
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -1506,97 +1402,43 @@ export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerAuth 
         {/* ========================================================================= */}
         {activeTab === 'security' && (
           <div className="space-y-5 max-w-xl mx-auto">
-            <div className="p-5 rounded-3xl bg-[#141416] border border-white/5 space-y-4">
+            <div className="p-5 rounded-3xl bg-[#141416] border border-emerald-500/20 space-y-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
                   <Lock className="w-5 h-5" />
                 </div>
                 <div>
                   <h4 className="text-sm font-black text-white font-heading">
-                    {isRTL ? 'تعديل كلمات المرور (PIN) وإدارة الصلاحيات' : 'Sécurité & Codes PIN'}
+                    {isRTL ? 'الأمان وإدارة الصلاحيات' : 'Sécurité & Accès'}
                   </h4>
                   <p className="text-xs text-gray-400">
-                    {isRTL ? 'تغيير رمز مرور المدير الخاص ورمز مرور طاقم المطبخ والكاشير' : 'Modifier les codes PIN d\'accès'}
+                    {isRTL ? 'مصادقة خادمية بدون كلمات مرور مكشوفة في المتصفح' : 'Authentification serveur sans secret exposé dans le navigateur'}
                   </p>
                 </div>
               </div>
 
-              {pinChangeSuccess && (
-                <div className="p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>{pinChangeSuccess}</span>
-                </div>
+              <div className="rounded-2xl bg-emerald-950/30 border border-emerald-800/40 p-4 space-y-2 text-xs text-emerald-100 leading-relaxed">
+                <p>
+                  {isRTL
+                    ? 'لا توجد كلمة مرور أو PIN افتراضية داخل التطبيق. جلسات الموظفين موقعة في الخادم، والمفتاح الخاص لا يصل إلى الواجهة.'
+                    : 'Aucun mot de passe ou PIN par défaut n’est embarqué dans l’application. Les sessions staff sont signées côté serveur et la clé privée reste hors du navigateur.'}
+                </p>
+                <p className="text-emerald-200/70">
+                  {isRTL
+                    ? 'لإنشاء أو تعطيل حسابات الموظفين، استخدم إدارة الموظفين المرتبطة بـ Supabase.'
+                    : 'Pour créer ou désactiver un compte staff, utilisez la gestion des employés reliée à Supabase.'}
+                </p>
+              </div>
+
+              {managerAuth && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('staff')}
+                  className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs transition-colors cursor-pointer"
+                >
+                  {isRTL ? 'فتح إدارة حسابات الموظفين' : 'Ouvrir la gestion des comptes staff'}
+                </button>
               )}
-
-              {/* Change Manager PIN */}
-              <div className="space-y-2 pt-2 border-t border-white/5">
-                <label className="block text-xs font-bold text-gray-300">
-                  {isRTL ? 'رمز مرور المدير الجديد (Manager PIN) *' : 'Nouveau code PIN Manager *'}
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="password"
-                    maxLength={4}
-                    value={newManagerPinInput}
-                    onChange={(e) => setNewManagerPinInput(e.target.value)}
-                    placeholder="Ex: 9999"
-                    className="flex-1 px-3 py-2 bg-[#1A1A1D] border border-white/10 rounded-xl text-xs text-white font-mono tracking-widest focus:outline-none focus:border-amber-500"
-                  />
-                  <button
-                    onClick={() => {
-                      if (newManagerPinInput.length === 4) {
-                        updateManagerPin(newManagerPinInput);
-                        setNewManagerPinInput('');
-                        setPinChangeSuccess(isRTL ? 'تم تحديث رمز مرور المدير بنجاح !' : 'PIN Manager mis à jour !');
-                        soundFx.playAddCustomExtra();
-                      }
-                    }}
-                    disabled={newManagerPinInput.length !== 4}
-                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-black text-xs transition-colors cursor-pointer"
-                  >
-                    {isRTL ? 'تحديث' : 'Mettre à jour'}
-                  </button>
-                </div>
-                <p className="text-[11px] text-gray-500">
-                  {isRTL ? 'الرمز الحالي للمدير: ' : 'PIN Manager actuel : '}
-                  <span className="font-mono text-gray-400 font-bold">{managerPin}</span>
-                </p>
-              </div>
-
-              {/* Change Staff PIN */}
-              <div className="space-y-2 pt-4 border-t border-white/5">
-                <label className="block text-xs font-bold text-gray-300">
-                  {isRTL ? 'رمز مرور طاقم المطبخ والكاشير (Staff PIN) *' : 'Nouveau code PIN Équipe (Staff) *'}
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="password"
-                    maxLength={4}
-                    value={newStaffPinInput}
-                    onChange={(e) => setNewStaffPinInput(e.target.value)}
-                    placeholder="Ex: 1234"
-                    className="flex-1 px-3 py-2 bg-[#1A1A1D] border border-white/10 rounded-xl text-xs text-white font-mono tracking-widest focus:outline-none focus:border-amber-500"
-                  />
-                  <button
-                    onClick={() => {
-                      if (newStaffPinInput.length === 4) {
-                        updateStaffPin(newStaffPinInput);
-                        setNewStaffPinInput('');
-                        setPinChangeSuccess(isRTL ? 'تم تحديث رمز مرور طاقم المطبخ والكاشير بنجاح !' : 'PIN Équipe mis à jour !');
-                        soundFx.playAddCustomExtra();
-                      }
-                    }}
-                    disabled={newStaffPinInput.length !== 4}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-black text-xs transition-colors cursor-pointer"
-                  >
-                    {isRTL ? 'تحديث' : 'Mettre à jour'}
-                  </button>
-                </div>
-                <p className="text-[11px] text-gray-500">
-                  {isRTL ? 'الرمز الحالي لطاقم المطبخ: ' : 'PIN Équipe actuel : '}
-                  <span className="font-mono text-gray-400 font-bold">{staffPin}</span>
-                </p>
-              </div>
             </div>
           </div>
         )}

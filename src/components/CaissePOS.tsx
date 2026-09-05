@@ -104,7 +104,17 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
   const totalAmount = subtotal + deliveryFee;
 
   const cashReceivedNumber = Number(cashReceivedInput) || 0;
+  const cashReceivedProvided = cashReceivedInput.trim().length > 0;
   const changeToGive = Math.max(0, cashReceivedNumber - totalAmount);
+  const cashPaymentIsInsufficient =
+    paymentMethod === 'cash' && cashReceivedProvided && cashReceivedNumber < totalAmount;
+  const settleCashReceivedNumber = Number(settleCashReceived) || 0;
+  const settleCashReceivedProvided = settleCashReceived.trim().length > 0;
+  const settleCashIsInsufficient =
+    settleMethod === 'cash' &&
+    Boolean(orderToSettle) &&
+    settleCashReceivedProvided &&
+    settleCashReceivedNumber < (orderToSettle?.total || 0);
 
   // Add item to ticket
   const handleAddItemToTicket = (product: Product, sizeOption?: { name: string; priceDelta: number }) => {
@@ -183,6 +193,11 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
       return;
     }
 
+    if (isImmediatePayment && cashPaymentIsInsufficient) {
+      showFeedback(isRTL ? 'المبلغ المستلم أقل من المبلغ الإجمالي' : 'Le montant reçu est inférieur au total');
+      return;
+    }
+
     const createdOrder = placeCaisseOrder({
       customerName: customerName.trim() || (orderType === 'sur_place' ? `Table ${tableNumber}` : 'Client Caisse'),
       deliveryType: orderType,
@@ -193,7 +208,12 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
       total: totalAmount,
       isPaid: isImmediatePayment,
       paymentMethod: isImmediatePayment ? paymentMethod : 'cash',
-      cashReceived: isImmediatePayment && paymentMethod === 'cash' ? (cashReceivedNumber || totalAmount) : totalAmount,
+      cashReceived:
+        isImmediatePayment && paymentMethod === 'cash'
+          ? cashReceivedProvided
+            ? cashReceivedNumber
+            : totalAmount
+          : totalAmount,
       changeGiven: isImmediatePayment && paymentMethod === 'cash' ? changeToGive : 0,
       notes: orderType === 'sur_place' ? `Table ${tableNumber}` : 'Commande comptoir caisse',
     });
@@ -423,13 +443,20 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
             {/* Search & Category Pills */}
             <div className="p-3 bg-[#0E0E10] border-b border-white/5 flex flex-col gap-2 shrink-0">
               <div className="relative">
-                <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Search
+                  className={`w-4 h-4 text-gray-500 absolute top-1/2 -translate-y-1/2 pointer-events-none ${
+                    isRTL ? 'right-3' : 'left-3'
+                  }`}
+                />
                 <input
-                  type="text"
+                  type="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  aria-label={isRTL ? 'البحث في المنتجات' : 'Rechercher un produit'}
                   placeholder={isRTL ? 'بحث سريع عن طبق أو مشروب...' : 'Recherche rapide plat, boisson...'}
-                  className="w-full pl-9 pr-3 py-2 bg-[#141416] border border-white/10 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6321]"
+                  className={`w-full py-2 bg-[#141416] border border-white/10 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FF6321] ${
+                    isRTL ? 'pr-9 pl-3 text-right' : 'pl-9 pr-3 text-left'
+                  }`}
                 />
               </div>
 
@@ -462,7 +489,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
             </div>
 
             {/* Products Grid */}
-            <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 auto-rows-max">
+            <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5 auto-rows-max content-start">
               {availableProducts.map((prod) => (
                 <button
                   key={prod.id}
@@ -477,7 +504,9 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
                   <div className="relative w-full aspect-4/3 rounded-xl overflow-hidden bg-neutral-900 mb-2">
                     <img
                       src={prod.image}
-                      alt={prod.nameFr}
+                      alt={isRTL ? prod.nameAr : prod.nameFr}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                     {prod.badge && (
@@ -497,7 +526,11 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
                       {isRTL ? prod.nameAr : prod.nameFr}
                     </h4>
                     <span className="text-xs font-black text-[#FF6321] font-mono">
-                      {prod.basePrice} {config.currency}
+                      {prod.sizes && prod.sizes.length > 0
+                        ? isRTL
+                          ? `ابتداءً من ${prod.basePrice} ${config.currency}`
+                          : `À partir de ${prod.basePrice} ${config.currency}`
+                        : `${prod.basePrice} ${config.currency}`}
                     </span>
                   </div>
                 </button>
@@ -654,7 +687,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
                 ticketItems.map((item) => (
                   <div
                     key={item.id}
-                    className="p-2.5 rounded-xl bg-[#141416] border border-white/5 flex items-center justify-between gap-2"
+                    className="p-2.5 rounded-xl bg-[#141416] border border-white/5 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2"
                   >
                     <div className="min-w-0 flex-1">
                       <h5 className="text-xs font-black text-white truncate font-heading">
@@ -696,7 +729,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
             </div>
 
             {/* Payment & Cash Change Calculator */}
-            <div className="p-3 border-t border-white/5 bg-[#141416] shrink-0 space-y-3 max-h-[48dvh] overflow-y-auto overscroll-contain md:max-h-none md:overflow-visible">
+            <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-white/5 bg-[#141416] shrink-0 space-y-3 max-h-[52dvh] overflow-y-auto overscroll-contain md:max-h-none md:overflow-visible">
               {/* Subtotal & Total */}
               <div className="space-y-1 text-xs">
                 <div className="flex justify-between text-gray-400">
@@ -769,12 +802,16 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
                     <div className="flex items-center gap-1">
                       <input
                         type="number"
-                        min={totalAmount}
+                        min={0}
                         step="50"
+                        inputMode="numeric"
                         value={cashReceivedInput}
                         onChange={(e) => setCashReceivedInput(e.target.value)}
                         placeholder={totalAmount.toString()}
-                        className="w-24 px-2 py-1 bg-[#1A1A1C] border border-white/10 rounded-lg text-xs text-right font-mono font-black text-white focus:outline-none focus:border-[#FF6321]"
+                        aria-label={isRTL ? 'المبلغ المستلم' : 'Montant reçu'}
+                        className={`w-24 px-2 py-1 bg-[#1A1A1C] rounded-lg text-xs text-right font-mono font-black text-white focus:outline-none focus:border-[#FF6321] border ${
+                          cashPaymentIsInsufficient ? 'border-red-500' : 'border-white/10'
+                        }`}
                       />
                       <span className="text-[10px] text-gray-500 font-mono">DA</span>
                     </div>
@@ -804,6 +841,17 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
                   </div>
 
                   {/* Change to return banner */}
+                  {cashPaymentIsInsufficient && (
+                    <div className="p-2 rounded-xl bg-red-950/40 border border-red-800/40 flex items-center justify-between text-red-300 font-black">
+                      <span className="text-xs">
+                        {isRTL ? 'المبلغ المستلم أقل من الإجمالي' : 'Montant reçu insuffisant'}
+                      </span>
+                      <span className="text-xs font-mono">
+                        {Math.max(0, totalAmount - cashReceivedNumber)} {config.currency}
+                      </span>
+                    </div>
+                  )}
+
                   {cashReceivedNumber > totalAmount && (
                     <div className="p-2 rounded-xl bg-emerald-950/40 border border-emerald-800/40 flex items-center justify-between text-emerald-400 font-black">
                       <span className="text-xs">
@@ -822,7 +870,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
                 <button
                   type="button"
                   onClick={() => handleValidateTicket(true)}
-                  disabled={ticketItems.length === 0}
+                  disabled={ticketItems.length === 0 || cashPaymentIsInsufficient}
                   className="w-full py-3 px-4 rounded-2xl bg-[#FF6321] hover:brightness-110 disabled:opacity-40 disabled:hover:brightness-100 text-black font-black uppercase tracking-tight text-xs sm:text-sm shadow-[0_8px_18px_rgba(255,99,33,0.3)] flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
                 >
                   <CheckCircle2 className="w-4 h-4 stroke-[3]" />
@@ -1180,9 +1228,23 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
                     type="number"
                     value={settleCashReceived}
                     onChange={(e) => setSettleCashReceived(e.target.value)}
-                    className="w-24 px-2 py-1 bg-[#1A1A1C] border border-white/10 rounded-lg text-xs font-mono font-bold text-right text-white"
+                    inputMode="numeric"
+                    min={0}
+                    aria-label={isRTL ? 'المبلغ المستلم للتسوية' : 'Montant reçu pour règlement'}
+                    className={`w-24 px-2 py-1 bg-[#1A1A1C] rounded-lg text-xs font-mono font-bold text-right text-white border ${
+                      settleCashIsInsufficient ? 'border-red-500' : 'border-white/10'
+                    }`}
                   />
                 </div>
+
+                {settleCashIsInsufficient && (
+                  <div className="flex justify-between text-xs text-red-300 font-black pt-2 border-t border-white/5">
+                    <span>{isRTL ? 'المبلغ غير كافٍ:' : 'Montant insuffisant :'}</span>
+                    <span className="font-mono">
+                      {orderToSettle.total - settleCashReceivedNumber} {config.currency}
+                    </span>
+                  </div>
+                )}
 
                 {Number(settleCashReceived) > orderToSettle.total && (
                   <div className="flex justify-between text-xs text-emerald-400 font-black pt-2 border-t border-white/5">
@@ -1197,8 +1259,12 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
 
             <button
               onClick={() => {
-                const received = Number(settleCashReceived) || orderToSettle.total;
+                const received = settleCashReceivedProvided ? settleCashReceivedNumber : orderToSettle.total;
                 const change = Math.max(0, received - orderToSettle.total);
+                if (settleMethod === 'cash' && received < orderToSettle.total) {
+                  showFeedback(isRTL ? 'المبلغ المستلم أقل من المبلغ المطلوب' : 'Le montant reçu est inférieur au total');
+                  return;
+                }
                 markOrderPaid(orderToSettle.id, settleMethod, received, change);
                 showFeedback(isRTL ? 'تم تسجيل تحصيل المبلغ بنجاح !' : 'Paiement enregistré avec succès !');
                 setActiveTicketOrderForReceipt({
@@ -1211,7 +1277,8 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
                 });
                 setOrderToSettle(null);
               }}
-              className="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-tight flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(16,185,129,0.3)] transition-colors cursor-pointer"
+              disabled={settleCashIsInsufficient}
+              className="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:hover:bg-emerald-600 text-white font-black text-xs uppercase tracking-tight flex items-center justify-center gap-2 shadow-[0_8px_16px_rgba(16,185,129,0.3)] transition-colors cursor-pointer"
             >
               <Check className="w-4 h-4 stroke-[3]" />
               <span>{isRTL ? 'تأكيد استلام المبلغ وإغلاق الفاتورة' : 'Confirmer l\'encaissement'}</span>
@@ -1222,13 +1289,14 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
 
       {/* MODAL: THERMAL RECEIPT PRINT (TICKET DE CAISSE) */}
       {activeTicketOrderForReceipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="print-receipt-backdrop fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-200">
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm bg-white text-black rounded-3xl p-5 sm:p-6 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col font-mono text-xs"
+            className="print-receipt w-full max-w-sm bg-white text-black rounded-3xl p-5 sm:p-6 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col font-mono text-xs"
           >
             {/* Action Bar */}
-            <div className="flex items-center justify-between border-b pb-3 mb-3 print:hidden">
+                          <div className="print-hidden flex items-center justify-between border-b pb-3 mb-3 print:hidden">
+
               <span className="font-black text-xs uppercase tracking-tight text-neutral-800">
                 {isRTL ? 'معاينة وصل الصندوق' : 'Ticket de Caisse'}
               </span>
@@ -1303,7 +1371,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
                     <span>{item.nameFr}</span>
                     {item.sizeName && <span className="text-[10px] text-neutral-500"> ({item.sizeName})</span>}
                   </div>
-                  <span className="font-bold shrink-0">{item.totalPrice} DA</span>
+                  <span className="font-bold shrink-0">{item.totalPrice} {config.currency}</span>
                 </div>
               ))}
               <div className="border-t border-dashed border-neutral-400 my-2" />
@@ -1313,34 +1381,41 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({ onOrderPlaced }) => {
             <div className="space-y-1 text-[11px]">
               <div className="flex justify-between">
                 <span>Sous-total :</span>
-                <span>{activeTicketOrderForReceipt.subtotal} DA</span>
+                <span>{activeTicketOrderForReceipt.subtotal} {config.currency}</span>
               </div>
               {activeTicketOrderForReceipt.deliveryFee > 0 && (
                 <div className="flex justify-between">
                   <span>Livraison :</span>
-                  <span>+{activeTicketOrderForReceipt.deliveryFee} DA</span>
+                  <span>+{activeTicketOrderForReceipt.deliveryFee} {config.currency}</span>
                 </div>
               )}
               <div className="flex justify-between text-base font-black pt-1 border-t border-black">
                 <span>TOTAL :</span>
-                <span>{activeTicketOrderForReceipt.total} DA</span>
+                <span>{activeTicketOrderForReceipt.total} {config.currency}</span>
               </div>
 
               {activeTicketOrderForReceipt.isPaid && (
                 <div className="pt-2 text-[10px] space-y-0.5 text-neutral-600">
                   <div className="flex justify-between">
                     <span>Mode de règlement :</span>
-                    <span className="uppercase font-bold">{activeTicketOrderForReceipt.paymentMethod || 'Espèces'}</span>
+                    <span className="uppercase font-bold">
+                      {activeTicketOrderForReceipt.paymentMethod === 'baridimob'
+                        ? 'BaridiMob'
+                        : activeTicketOrderForReceipt.paymentMethod === 'carte'
+                        ? 'Carte'
+                        : 'Espèces'}
+                    </span>
                   </div>
-                  {activeTicketOrderForReceipt.cashReceived && activeTicketOrderForReceipt.cashReceived > 0 && (
+                  {activeTicketOrderForReceipt.paymentMethod === 'cash' &&
+                    activeTicketOrderForReceipt.cashReceived !== undefined && (
                     <>
                       <div className="flex justify-between">
                         <span>Montant reçu :</span>
-                        <span>{activeTicketOrderForReceipt.cashReceived} DA</span>
+                        <span>{activeTicketOrderForReceipt.cashReceived} {config.currency}</span>
                       </div>
                       <div className="flex justify-between font-bold text-neutral-900">
                         <span>Rendu monnaie :</span>
-                        <span>{activeTicketOrderForReceipt.changeGiven || 0} DA</span>
+                        <span>{activeTicketOrderForReceipt.changeGiven || 0} {config.currency}</span>
                       </div>
                     </>
                   )}

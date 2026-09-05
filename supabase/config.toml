@@ -1,0 +1,14 @@
+# Edge Functions use the application's signed staff session where applicable.
+# The functions validate their own input/session and must not receive a service_role key from the browser.
+
+[functions.verify-cashier-pin]
+verify_jwt = false
+
+[functions.staff-session]
+verify_jwt = false
+
+[functions.manage-staff]
+verify_jwt = false
+
+[functions.staff-orders]
+verify_jwt = false

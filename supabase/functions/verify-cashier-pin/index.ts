@@ -40,7 +40,15 @@ Deno.serve(async (request) => {
     const { data, error } = await supabase.rpc('verify_cashier_pin', { p_employee_name: employeeName, p_pin: pin });
     if (error) {
       console.error('verify_cashier_pin RPC failed', { code: error.code, message: error.message });
-      return jsonResponse({ error: 'تعذر التحقق من بيانات العامل' }, 500);
+      const setupMissing = error.code === '42883' || error.code === '42P01' || error.code === '42501';
+      return jsonResponse(
+        {
+          error: setupMissing
+            ? 'لم يتم إعداد حسابات الموظفين في Supabase. شغّل ملف supabase_staff_auth.sql أولاً.'
+            : 'تعذر التحقق من بيانات العامل',
+        },
+        500,
+      );
     }
     const staff = Array.isArray(data) ? data[0] : null;
     if (!staff || !['cashier', 'manager'].includes(staff.staff_role)) return jsonResponse({ error: 'اسم العامل أو رمز السر غير صحيح' }, 401);

@@ -182,7 +182,7 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
           </button>
         </div>
         <div className="flex-1 overflow-hidden relative">
-          <ManagerDashboard />
+          <ManagerDashboard managerAuth={{ name: cashierName.trim(), pin: cashierCode }} />
         </div>
       </div>
     );

@@ -6,6 +6,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { soundFx } from '../utils/soundEffects';
 import { supabase } from '../lib/supabase';
 import { MustacheIcon } from './MustacheLogo';
+import { StaffAccessManager } from './StaffAccessManager';
 import {
   DollarSign,
   TrendingUp,
@@ -47,7 +48,11 @@ import {
   ShiftType,
 } from '../types/manager';
 
-export const ManagerDashboard: React.FC = () => {
+type ManagerDashboardProps = {
+  managerAuth?: { name: string; pin: string };
+};
+
+export const ManagerDashboard: React.FC<ManagerDashboardProps> = ({ managerAuth }) => {
   const {
     isManagerAuthenticated,
     setIsManagerAuthenticated,
@@ -75,7 +80,7 @@ export const ManagerDashboard: React.FC = () => {
   const { isRTL, toggleLanguage } = useLanguage();
 
   // Navigation subtabs
-  const [activeTab, setActiveTab] = useState<'finance' | 'expenses' | 'employees' | 'attendance' | 'security'>('finance');
+  const [activeTab, setActiveTab] = useState<'finance' | 'expenses' | 'employees' | 'attendance' | 'security' | 'staff'>('finance');
 
   // PIN input state for Manager Lock
   const [pinInput, setPinInput] = useState('');
@@ -532,6 +537,17 @@ export const ManagerDashboard: React.FC = () => {
             <span>{isRTL ? 'تتبع الورديات والحضور' : 'Pointage & Suivi'}</span>
           </button>
 
+          <button
+            onClick={() => setActiveTab('staff')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'staff'
+                ? 'bg-amber-500 text-black shadow-md'
+                : 'text-gray-300 hover:text-white'
+            }`}
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>{isRTL ? 'حسابات العمال' : 'Accès équipe'}</span>
+          </button>
           <button
             onClick={() => setActiveTab('security')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
@@ -1428,7 +1444,13 @@ export const ManagerDashboard: React.FC = () => {
         )}
 
         {/* ========================================================================= */}
-        {/* SUBTAB 5: PIN & SECURITY */}
+        {/* SUBTAB 5: STAFF ACCESS */}
+        {/* ========================================================================= */}
+        {activeTab === 'staff' && managerAuth && (
+          <StaffAccessManager managerName={managerAuth.name} managerPin={managerAuth.pin} isRTL={isRTL} />
+        )}
+        {/* ========================================================================= */}
+        {/* SUBTAB 6: PIN & SECURITY */}
         {/* ========================================================================= */}
         {activeTab === 'security' && (
           <div className="space-y-5 max-w-xl mx-auto">

@@ -16,6 +16,22 @@ interface OrderContextType {
   isAdminOpen: boolean;
   setIsAdminOpen: (open: boolean) => void;
   placeOrder: (customerInfo: CustomerOrderInfo, items: CartItem[], subtotal: number, deliveryFee: number) => PlacedOrder;
+  placeCaisseOrder: (orderData: {
+    customerName?: string;
+    customerPhone?: string;
+    deliveryType: 'sur_place' | 'a_emporter' | 'livraison';
+    tableNumber?: string;
+    items: OrderItemRecord[];
+    subtotal: number;
+    deliveryFee?: number;
+    total: number;
+    isPaid: boolean;
+    paymentMethod: 'cash' | 'baridimob' | 'carte';
+    cashReceived?: number;
+    changeGiven?: number;
+    notes?: string;
+  }) => PlacedOrder;
+  markOrderPaid: (orderId: string, paymentMethod: 'cash' | 'baridimob' | 'carte', cashReceived?: number, changeGiven?: number) => void;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
   deleteOrder: (orderId: string) => void;
   clearAllOrders: () => void;
@@ -277,6 +293,9 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       total: subtotal + (customerInfo.deliveryType === 'livraison' ? deliveryFee : 0),
       status: 'received',
       estimatedMinutes: 15,
+      isPaid: false,
+      paymentMethod: 'unpaid',
+      source: customerInfo.deliveryType === 'sur_place' ? 'table' : 'online',
     };
 
     const updated = [newOrder, ...orders];
@@ -299,6 +318,101 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
 
     return newOrder;
+  };
+
+  const placeCaisseOrder = (orderData: {
+    customerName?: string;
+    customerPhone?: string;
+    deliveryType: 'sur_place' | 'a_emporter' | 'livraison';
+    tableNumber?: string;
+    items: OrderItemRecord[];
+    subtotal: number;
+    deliveryFee?: number;
+    total: number;
+    isPaid: boolean;
+    paymentMethod: 'cash' | 'baridimob' | 'carte';
+    cashReceived?: number;
+    changeGiven?: number;
+    notes?: string;
+  }): PlacedOrder => {
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const orderId = `CT-C${randomSuffix}`;
+    const fee = orderData.deliveryFee || 0;
+
+    const newOrder: PlacedOrder = {
+      id: orderId,
+      createdAt: new Date().toISOString(),
+      customerInfo: {
+        customerName: orderData.customerName || (orderData.deliveryType === 'sur_place' ? `Table ${orderData.tableNumber || '1'}` : 'Client Caisse'),
+        customerPhone: orderData.customerPhone || '',
+        deliveryType: orderData.deliveryType,
+        tableNumber: orderData.tableNumber,
+        deliveryAddress: orderData.deliveryType === 'sur_place' ? `Table ${orderData.tableNumber || '1'}` : 'Comptoir / Caisse',
+        notes: orderData.notes,
+      },
+      items: orderData.items,
+      subtotal: orderData.subtotal,
+      deliveryFee: fee,
+      total: orderData.total,
+      status: 'preparing', // Directly into preparing since cashier took it
+      estimatedMinutes: 10,
+      isPaid: orderData.isPaid,
+      paymentMethod: orderData.paymentMethod,
+      cashReceived: orderData.cashReceived,
+      changeGiven: orderData.changeGiven,
+      paidAt: orderData.isPaid ? new Date().toISOString() : undefined,
+      source: 'caisse',
+    };
+
+    const updated = [newOrder, ...orders];
+    setOrders(updated);
+    soundFx.playNewOrderNotification();
+
+    try {
+      const channel = new BroadcastChannel('cheneb_orders_channel');
+      channel.postMessage({
+        type: 'ORDERS_UPDATED',
+        payload: { orders: updated },
+      });
+      channel.close();
+    } catch {
+      // ignore
+    }
+
+    return newOrder;
+  };
+
+  const markOrderPaid = (
+    orderId: string,
+    paymentMethod: 'cash' | 'baridimob' | 'carte',
+    cashReceived?: number,
+    changeGiven?: number
+  ) => {
+    const updated = orders.map((o) => {
+      if (o.id === orderId) {
+        return {
+          ...o,
+          isPaid: true,
+          paymentMethod,
+          cashReceived: cashReceived !== undefined ? cashReceived : o.total,
+          changeGiven: changeGiven !== undefined ? changeGiven : 0,
+          paidAt: new Date().toISOString(),
+        };
+      }
+      return o;
+    });
+
+    setOrders(updated);
+    try {
+      const channel = new BroadcastChannel('cheneb_orders_channel');
+      channel.postMessage({
+        type: 'ORDERS_UPDATED',
+        payload: { orders: updated },
+      });
+      channel.close();
+    } catch {
+      // ignore
+    }
   };
 
   const updateOrderStatus = (orderId: string, status: OrderStatus) => {
@@ -385,6 +499,8 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         isAdminOpen,
         setIsAdminOpen,
         placeOrder,
+        placeCaisseOrder,
+        markOrderPaid,
         updateOrderStatus,
         deleteOrder,
         clearAllOrders,

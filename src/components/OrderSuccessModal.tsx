@@ -20,6 +20,12 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Distinguish between Table Order and Online Order
+  const isTableOrder =
+    orderMessage.includes('طاولة') ||
+    orderMessage.includes('Table') ||
+    orderMessage.includes('طلب مباشر من الطاولة');
+
   const handleCopy = () => {
     navigator.clipboard.writeText(orderMessage);
     setCopied(true);
@@ -41,11 +47,21 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
 
         <div>
           <h2 className="text-xl font-black italic uppercase tracking-tight text-white font-heading">
-            {isRTL ? 'تم تجهيز طلبك بنجاح !' : 'Commande Transmise avec Succès !'}
+            {isTableOrder
+              ? isRTL
+                ? 'تم تأكيد طلب الطاولة بنجاح !'
+                : 'Commande Table Confirmée !'
+              : isRTL
+              ? 'تم تجهيز طلبك بنجاح !'
+              : 'Commande Transmise avec Succès !'}
           </h2>
           <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
-            {isRTL
-              ? 'تم فتح تطبيق واتساب لإرسال الطلب. فريق شنب طاكوس سيؤكد طلبك ووقت التجهيز فوراً.'
+            {isTableOrder
+              ? isRTL
+                ? 'تم إرسال طلبكم مباشرة إلى شاشة المطبخ. يجري تحضيره الآن وسيتم تقديمه لطاولتكم فور جهوزيته.'
+                : 'Votre commande est directement transmise en cuisine. Elle sera servie à votre table dès qu’elle sera prête.'
+              : isRTL
+              ? 'تم فتح تطبيق واتساب لمتابعة الطلب وتأكيده مع فريق شنب طاكوس.'
               : "Votre commande a été préparée pour WhatsApp. L'équipe de CHENEB TACOS va vous confirmer la réception et le délai."}
           </p>
         </div>
@@ -57,13 +73,16 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
 
         {/* Actions */}
         <div className="space-y-2.5 pt-1">
-          <button
-            onClick={handleReopenWhatsApp}
-            className="w-full py-3.5 px-4 rounded-2xl bg-[#FF6321] hover:brightness-110 text-black font-black uppercase tracking-tighter text-sm flex items-center justify-center gap-2 shadow-[0_8px_20px_rgba(255,99,33,0.3)] cursor-pointer"
-          >
-            <MessageCircle className="w-4 h-4 fill-current" />
-            <span>{isRTL ? 'إعادة فتح واتساب' : 'Réouvrir WhatsApp'}</span>
-          </button>
+          {/* ONLY show WhatsApp reopen for Online orders, NEVER for Table orders */}
+          {!isTableOrder && (
+            <button
+              onClick={handleReopenWhatsApp}
+              className="w-full py-3.5 px-4 rounded-2xl bg-[#FF6321] hover:brightness-110 text-black font-black uppercase tracking-tighter text-sm flex items-center justify-center gap-2 shadow-[0_8px_20px_rgba(255,99,33,0.3)] cursor-pointer"
+            >
+              <MessageCircle className="w-4 h-4 fill-current" />
+              <span>{isRTL ? 'متابعة الطلب عبر واتساب' : 'Suivre la commande sur WhatsApp'}</span>
+            </button>
+          )}
 
           <button
             onClick={handleCopy}
@@ -84,10 +103,10 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
 
             <button
               onClick={onClose}
-              className="flex-1 py-2.5 px-3 rounded-2xl bg-[#252527] hover:bg-[#303033] border border-white/10 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              className="flex-1 py-2.5 px-3 rounded-2xl bg-[#FF6321] text-black hover:brightness-110 text-xs font-black uppercase flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-md"
             >
               <ArrowLeft className={`w-3.5 h-3.5 ${isRTL ? 'rotate-180' : ''}`} />
-              <span>{isRTL ? 'الرجوع للقائمة' : 'Menu'}</span>
+              <span>{isRTL ? 'الرجوع للقائمة' : 'Retour au Menu'}</span>
             </button>
           </div>
         </div>

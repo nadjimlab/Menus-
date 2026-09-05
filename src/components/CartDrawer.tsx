@@ -3,7 +3,7 @@ import { useCart } from '../context/CartContext';
 import { useConfig } from '../context/ConfigContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useOrders } from '../context/OrderContext';
-import { PRODUCTS } from '../data/menuData';
+import { useProducts } from '../context/ProductsContext';
 import {
   X,
   Trash2,
@@ -33,6 +33,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onProceedToCheckout }) =
   const { config } = useConfig();
   const { isRTL } = useLanguage();
   const { tableNumber } = useOrders();
+  const { products } = useProducts();
 
   // Esc key listener & body lock
   useEffect(() => {
@@ -59,7 +60,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onProceedToCheckout }) =
   if (!isCartOpen) return null;
 
   // Quick upsell items
-  const quickDrinks = PRODUCTS.filter((p) => p.categoryId === 'boissons');
+  const quickDrinks = products.filter((p) => p.categoryId === 'boissons' && p.available);
 
   const handleQuickAddDrink = (product: typeof quickDrinks[0]) => {
     addToCart(

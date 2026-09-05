@@ -124,6 +124,12 @@ export interface PlacedOrder {
   status: OrderStatus;
   statusUpdatedAt?: string;
   estimatedMinutes?: number;
+  isPaid?: boolean;
+  paymentMethod?: 'cash' | 'baridimob' | 'carte' | 'unpaid';
+  cashReceived?: number;
+  changeGiven?: number;
+  paidAt?: string;
+  source?: 'online' | 'table' | 'caisse';
 }
 
 export interface CustomerOrderInfo {

@@ -121,6 +121,58 @@ class SoundManager {
       // Ignore
     }
   }
+
+  // POS Cashier register / payment completed sound
+  playCashRegister() {
+    try {
+      const ctx = this.getContext();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      [987.77, 1318.51, 1975.53].forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+        gain.gain.setValueAtTime(0.2, now + idx * 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.35);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + idx * 0.08);
+        osc.stop(now + idx * 0.08 + 0.35);
+      });
+    } catch {
+      // Ignore
+    }
+  }
+
+  // Gentle UI blip / add item
+  playClick() {
+    try {
+      const ctx = this.getContext();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(700, now);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.08);
+    } catch {
+      // Ignore
+    }
+  }
+
+  playAddCustomExtra() {
+    this.playClick();
+  }
+
+  playAddOrderSuccess() {
+    this.playCashRegister();
+  }
 }
 
 export const soundFx = new SoundManager();

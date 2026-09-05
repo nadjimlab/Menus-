@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Product } from '../types';
-import { PRODUCTS } from '../data/menuData';
+import { useProducts } from '../context/ProductsContext';
 import { useConfig } from '../context/ConfigContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Search, X, Sliders } from 'lucide-react';
@@ -16,6 +16,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   onClose,
   onSelectProduct,
 }) => {
+  const { products } = useProducts();
   const { config } = useConfig();
   const { isRTL } = useLanguage();
   const [query, setQuery] = useState('');
@@ -38,7 +39,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 
   const normalizedQuery = query.toLowerCase().trim();
 
-  const filteredProducts = PRODUCTS.filter((p) => {
+  const filteredProducts = products.filter((p) => {
     if (!normalizedQuery) return false;
 
     const matchNameFr = p.nameFr.toLowerCase().includes(normalizedQuery);

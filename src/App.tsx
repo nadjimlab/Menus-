@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { ConfigProvider, useConfig } from './context/ConfigContext';
+import { ProductsProvider, useProducts } from './context/ProductsContext';
 import { CartProvider, useCart } from './context/CartContext';
 import { OrderProvider, useOrders } from './context/OrderContext';
-import { PRODUCTS, CATEGORIES, MOOD_FILTERS } from './data/menuData';
+import { CATEGORIES, MOOD_FILTERS } from './data/menuData';
 import { Product, CategoryId } from './types';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
@@ -29,6 +30,7 @@ import { Utensils, Lock } from 'lucide-react';
 
 const MenuAppContent: React.FC = () => {
   const { config } = useConfig();
+  const { products } = useProducts();
   const { isCheckoutOpen, setIsCheckoutOpen } = useCart();
   const { isAdminOpen, setIsAdminOpen } = useOrders();
   const { isRTL } = useLanguage();
@@ -100,7 +102,7 @@ const MenuAppContent: React.FC = () => {
 
   // Filter products based on Category + Mood + SubFilter
   const filteredProducts = useMemo(() => {
-    return PRODUCTS.filter((product) => {
+    return products.filter((product) => {
       // 1. Category check
       if (activeCategory !== 'all' && product.categoryId !== activeCategory) {
         return false;
@@ -135,12 +137,12 @@ const MenuAppContent: React.FC = () => {
           return true;
       }
     });
-  }, [activeCategory, activeMoodId, activeSubFilter]);
+  }, [products, activeCategory, activeMoodId, activeSubFilter]);
 
   // Counts per category for badge indicators
   const categoryCounts = useMemo(() => {
     const counts: Record<CategoryId, number> = {
-      all: PRODUCTS.length,
+      all: products.length,
       tacos: 0,
       burgers: 0,
       sandwiches: 0,
@@ -148,13 +150,13 @@ const MenuAppContent: React.FC = () => {
       plats: 0,
       boissons: 0,
     };
-    PRODUCTS.forEach((p) => {
+    products.forEach((p) => {
       if (counts[p.categoryId] !== undefined) {
         counts[p.categoryId]++;
       }
     });
     return counts;
-  }, []);
+  }, [products]);
 
   return (
     <div className={`min-h-screen bg-[#0A0A0B] text-white flex flex-col selection:bg-[#FF6321] selection:text-black ${isRTL ? 'font-sans' : ''}`}>
@@ -362,11 +364,13 @@ export default function App() {
   return (
     <LanguageProvider>
       <ConfigProvider>
-        <CartProvider>
-          <OrderProvider>
-            <MenuAppContent />
-          </OrderProvider>
-        </CartProvider>
+        <ProductsProvider>
+          <CartProvider>
+            <OrderProvider>
+              <MenuAppContent />
+            </OrderProvider>
+          </CartProvider>
+        </ProductsProvider>
       </ConfigProvider>
     </LanguageProvider>
   );

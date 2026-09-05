@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { useOrders } from '../context/OrderContext';
 import { useConfig } from '../context/ConfigContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useProducts } from '../context/ProductsContext';
 import { PlacedOrder, OrderStatus } from '../types';
 import { TableStandCard } from './TableStandCard';
 import { MustacheLogo } from './MustacheLogo';
+import { AdminProductManager } from './AdminProductManager';
+import { CaissePOS } from './CaissePOS';
 import { soundFx } from '../utils/soundEffects';
 import {
   X,
@@ -28,6 +31,9 @@ import {
   LogOut,
   KeyRound,
   ShieldAlert,
+  Calculator,
+  Utensils,
+  Banknote,
 } from 'lucide-react';
 
 interface AdminOrdersModalProps {
@@ -45,6 +51,7 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
     clearAllOrders,
     placeOrder,
   } = useOrders();
+  const { products } = useProducts();
   const { config, updateConfig, resetConfig } = useConfig();
   const { isRTL } = useLanguage();
 
@@ -58,7 +65,7 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'orders' | 'qrcodes' | 'settings'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'caisse' | 'products' | 'qrcodes' | 'settings'>('orders');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedTableNumber, setSelectedTableNumber] = useState<number>(1);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -301,46 +308,50 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
     );
   }
 
+  // Unpaid count for caisse badge
+  const unpaidOrdersCount = orders.filter((o) => !o.isPaid && o.status !== 'cancelled').length;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-3 md:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-5xl h-[92vh] bg-[#0A0A0B] border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-6xl h-[100dvh] sm:h-[94vh] max-h-[100dvh] bg-[#0A0A0B] border border-white/10 rounded-none sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
       >
         {/* Top Bar */}
-        <div className="p-4 sm:p-5 border-b border-white/5 bg-[#0F0F10] flex flex-wrap items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#FF6321] text-black font-black flex items-center justify-center shadow-[0_0_15px_rgba(255,99,33,0.3)]">
+        <div className="p-3 sm:p-4 border-b border-white/5 bg-[#0F0F10] flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#FF6321] text-black font-black flex items-center justify-center shadow-[0_0_15px_rgba(255,99,33,0.3)] shrink-0">
               <MustacheLogo className="w-6 h-3 text-black" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-black uppercase tracking-tight text-white font-heading">
-                  {isRTL ? 'لوحة إدارة المطبخ والطلبات (KDS)' : 'Espace Restaurant & Commandes'}
+                <h2 className="text-sm sm:text-base font-black uppercase tracking-tight text-white font-heading">
+                  {isRTL ? 'لوحة إدارة المطعم الشاملة' : 'Administration & Gestion Restaurant'}
                 </h2>
-                <span className="hidden sm:inline-block px-2 py-0.5 rounded-md bg-[#FF6321]/20 text-[#FF6321] text-[10px] font-black uppercase">
-                  Admin Pro
+                <span className="hidden sm:inline-block px-1.5 py-0.5 rounded-md bg-[#FF6321]/20 text-[#FF6321] text-[9px] font-black uppercase">
+                  Staff Pro
                 </span>
               </div>
-              <p className="text-xs text-gray-400">
-                {isRTL ? 'استقبال الطلبات الحية وإدارة رموز QR للطاولات' : 'Réception des commandes en temps réel & gestion des tables QR'}
+              <p className="text-[11px] text-gray-400">
+                {isRTL ? 'الطلبات، نقطة بيع الكاشير، وتعديل قائمة الطعام' : 'Commandes KDS, Caisse POS & Gestion de la Carte'}
               </p>
             </div>
           </div>
 
           {/* Navigation Tabs & Actions */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 bg-[#1A1A1C] p-1 rounded-2xl border border-white/5">
+          <div className="flex items-center gap-1.5 max-w-full overflow-x-auto scrollbar-none pb-0.5">
+            <div className="flex items-center gap-1 bg-[#1A1A1C] p-1 rounded-2xl border border-white/5 shrink-0">
+              {/* 1. KDS Kitchen Orders */}
               <button
                 onClick={() => setActiveTab('orders')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
                   activeTab === 'orders'
                     ? 'bg-[#FF6321] text-black shadow-md'
                     : 'text-gray-300 hover:text-white'
                 }`}
               >
                 <Clock className="w-3.5 h-3.5" />
-                <span>{isRTL ? 'الطلبات' : 'Commandes'}</span>
+                <span>{isRTL ? 'المطبخ والطلبات' : 'Cuisine & KDS'}</span>
                 {countByStatus.received > 0 && (
                   <span className="w-4 h-4 rounded-full bg-red-600 text-white text-[9px] flex items-center justify-center animate-pulse">
                     {countByStatus.received}
@@ -348,9 +359,44 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
                 )}
               </button>
 
+              {/* 2. Caisse & POS */}
+              <button
+                onClick={() => setActiveTab('caisse')}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'caisse'
+                    ? 'bg-[#FF6321] text-black shadow-md'
+                    : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                <Calculator className="w-3.5 h-3.5" />
+                <span>{isRTL ? 'الكاشير والصندوق' : 'Caisse & POS'}</span>
+                {unpaidOrdersCount > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-amber-500 text-black text-[9px] flex items-center justify-center font-bold">
+                    {unpaidOrdersCount}
+                  </span>
+                )}
+              </button>
+
+              {/* 3. Product CRUD Manager */}
+              <button
+                onClick={() => setActiveTab('products')}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'products'
+                    ? 'bg-[#FF6321] text-black shadow-md'
+                    : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                <Utensils className="w-3.5 h-3.5" />
+                <span>{isRTL ? 'قائمة الطعام' : 'Menu & Plats'}</span>
+                <span className="opacity-70 text-[10px] hidden sm:inline">
+                  ({products.length})
+                </span>
+              </button>
+
+              {/* 4. Table QR Codes */}
               <button
                 onClick={() => setActiveTab('qrcodes')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
                   activeTab === 'qrcodes'
                     ? 'bg-[#FF6321] text-black shadow-md'
                     : 'text-gray-300 hover:text-white'
@@ -360,9 +406,10 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
                 <span>{isRTL ? 'QR الطاولات' : 'QR Tables'}</span>
               </button>
 
+              {/* 5. Settings */}
               <button
                 onClick={() => setActiveTab('settings')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
                   activeTab === 'settings'
                     ? 'bg-[#FF6321] text-black shadow-md'
                     : 'text-gray-300 hover:text-white'
@@ -377,16 +424,16 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
             <button
               onClick={handleLogout}
               title={isRTL ? 'قفل لوحة الإدارة' : 'Verrouiller la session'}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1A1A1C] hover:bg-red-950/60 hover:text-red-300 border border-white/5 text-gray-400 text-xs font-bold transition-all cursor-pointer"
+              className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 rounded-xl bg-[#1A1A1C] hover:bg-red-950/60 hover:text-red-300 border border-white/5 text-gray-400 text-xs font-bold transition-all cursor-pointer shrink-0"
             >
               <Lock className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{isRTL ? 'قفل' : 'Verrouiller'}</span>
+              <span className="hidden md:inline">{isRTL ? 'قفل' : 'Verrouiller'}</span>
             </button>
 
             <button
               onClick={onClose}
               aria-label="Fermer"
-              className="w-8 h-8 rounded-full bg-[#1A1A1C] hover:bg-[#252527] text-gray-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              className="w-8 h-8 rounded-full bg-[#1A1A1C] hover:bg-[#252527] text-gray-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
             >
               <X className="w-4 h-4" />
             </button>
@@ -696,7 +743,21 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
           </div>
         )}
 
-        {/* Tab 2: QR CODES FOR TABLES */}
+        {/* Tab 2: CAISSE & POINT DE VENTE (POS) */}
+        {activeTab === 'caisse' && (
+          <div className="flex-1 overflow-hidden">
+            <CaissePOS />
+          </div>
+        )}
+
+        {/* Tab 3: PRODUCTS & MENU MANAGER (CRUD) */}
+        {activeTab === 'products' && (
+          <div className="flex-1 overflow-hidden">
+            <AdminProductManager />
+          </div>
+        )}
+
+        {/* Tab 4: QR CODES FOR TABLES */}
         {activeTab === 'qrcodes' && (
           <div className="flex-1 p-4 sm:p-6 overflow-y-auto no-scrollbar">
             <div className="max-w-3xl mx-auto space-y-6">

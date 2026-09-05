@@ -141,9 +141,11 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
         return;
       }
 
+      const isManager = role === 'manager';
       setIsAuthenticated(true);
-      setIsManagerMode(role === 'manager');
-      setIsManagerAuthenticated(role === 'manager');
+      setIsManagerMode(isManager);
+      setIsManagerAuthenticated(isManager);
+      setActiveTab(isManager ? 'orders' : 'caisse');
     } catch {
       setLoginErrorMessage(isRTL ? 'تعذر الاتصال بخدمة التحقق' : 'Impossible de joindre le service de vérification');
     } finally {
@@ -300,14 +302,14 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm sm:text-base font-black uppercase tracking-tight text-white font-heading">
-                  {isRTL ? 'لوحة إدارة المطعم الشاملة' : 'Administration & Gestion Restaurant'}
+                  {isRTL ? (isManagerMode ? 'لوحة إدارة المدير' : 'لوحة الكاشير') : (isManagerMode ? 'Administration & Gestion Restaurant' : 'Caisse & Commandes')}
                 </h2>
                 <span className="hidden sm:inline-block px-1.5 py-0.5 rounded-md bg-[#FF6321]/20 text-[#FF6321] text-[9px] font-black uppercase">
                   Staff Pro
                 </span>
               </div>
               <p className="text-[11px] text-gray-400">
-                {isRTL ? 'الطلبات، نقطة بيع الكاشير، وتعديل قائمة الطعام' : 'Commandes KDS, Caisse POS & Gestion de la Carte'}
+                {isRTL ? (isManagerMode ? 'الطلبات، الكاشير، وإدارة المطعم' : 'الطلبات ونقطة بيع الكاشير') : (isManagerMode ? 'Commandes KDS, Caisse POS & Gestion de la Carte' : 'Commandes & Caisse POS')}
               </p>
             </div>
           </div>
@@ -351,47 +353,51 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
                 )}
               </button>
 
-              {/* 3. Product CRUD Manager */}
-              <button
-                onClick={() => setActiveTab('products')}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === 'products'
-                    ? 'bg-[#FF6321] text-black shadow-md'
-                    : 'text-gray-300 hover:text-white'
-                }`}
-              >
-                <Utensils className="w-3.5 h-3.5" />
-                <span>{isRTL ? 'قائمة الطعام' : 'Menu & Plats'}</span>
-                <span className="opacity-70 text-[10px] hidden sm:inline">
-                  ({products.length})
-                </span>
-              </button>
+              {isManagerMode && (
+                <>
+                  {/* 3. Product CRUD Manager */}
+                  <button
+                    onClick={() => setActiveTab('products')}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                      activeTab === 'products'
+                        ? 'bg-[#FF6321] text-black shadow-md'
+                        : 'text-gray-300 hover:text-white'
+                    }`}
+                  >
+                    <Utensils className="w-3.5 h-3.5" />
+                    <span>{isRTL ? 'قائمة الطعام' : 'Menu & Plats'}</span>
+                    <span className="opacity-70 text-[10px] hidden sm:inline">
+                      ({products.length})
+                    </span>
+                  </button>
 
-              {/* 4. Table QR Codes */}
-              <button
-                onClick={() => setActiveTab('qrcodes')}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === 'qrcodes'
-                    ? 'bg-[#FF6321] text-black shadow-md'
-                    : 'text-gray-300 hover:text-white'
-                }`}
-              >
-                <QrCode className="w-3.5 h-3.5" />
-                <span>{isRTL ? 'QR الطاولات' : 'QR Tables'}</span>
-              </button>
+                  {/* 4. Table QR Codes */}
+                  <button
+                    onClick={() => setActiveTab('qrcodes')}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                      activeTab === 'qrcodes'
+                        ? 'bg-[#FF6321] text-black shadow-md'
+                        : 'text-gray-300 hover:text-white'
+                    }`}
+                  >
+                    <QrCode className="w-3.5 h-3.5" />
+                    <span>{isRTL ? 'QR الطاولات' : 'QR Tables'}</span>
+                  </button>
 
-              {/* 5. Settings */}
-              <button
-                onClick={() => setActiveTab('settings')}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === 'settings'
-                    ? 'bg-[#FF6321] text-black shadow-md'
-                    : 'text-gray-300 hover:text-white'
-                }`}
-              >
-                <Settings className="w-3.5 h-3.5" />
-                <span>{isRTL ? 'الإعدادات' : 'Paramètres'}</span>
-              </button>
+                  {/* 5. Settings */}
+                  <button
+                    onClick={() => setActiveTab('settings')}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                      activeTab === 'settings'
+                        ? 'bg-[#FF6321] text-black shadow-md'
+                        : 'text-gray-300 hover:text-white'
+                    }`}
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    <span>{isRTL ? 'الإعدادات' : 'Paramètres'}</span>
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Lock / Logout session */}

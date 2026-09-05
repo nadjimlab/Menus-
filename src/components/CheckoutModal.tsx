@@ -15,6 +15,7 @@ import {
   User,
   Copy,
   Check,
+  CheckCircle2,
   Sparkles,
   QrCode,
   Info,
@@ -280,17 +281,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     );
 
     const message = buildWhatsAppMessage(placedOrder.id);
-    const encoded = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${config.whatsappNumber}?text=${encoded}`;
 
-    // Launch WhatsApp
-    window.open(whatsappUrl, '_blank');
+    // If ONLINE order: Launch WhatsApp to send and follow the order
+    // If TABLE order: Do NOT open WhatsApp - only confirm directly in the restaurant system
+    if (orderChannel === 'online') {
+      const encoded = encodeURIComponent(message);
+      const whatsappUrl = `https://wa.me/${config.whatsappNumber}?text=${encoded}`;
+      window.open(whatsappUrl, '_blank');
+    }
 
     // Clear cart & transition to live order tracker
     clearCart();
     setIsCartOpen(false);
     onClose();
-    onOrderSuccess(message);
+    onOrderSuccess(
+      orderChannel === 'table'
+        ? isRTL ? `تم تأكيد طلب الطاولة رقم ${tableNumber || '1'} بنجاح!` : `Commande Table ${tableNumber || '1'} confirmée !`
+        : message
+    );
     setIsOrderTrackerOpen(true);
   };
 
@@ -317,11 +325,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         <div className="p-4 sm:p-5 border-b border-white/5 bg-[#0F0F10] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-2xl bg-[#FF6321] text-black font-black flex items-center justify-center shadow-[0_0_15px_rgba(255,99,33,0.3)]">
-              <MessageCircle className="w-5 h-5 fill-current" />
+              {orderChannel === 'table' ? (
+                <Utensils className="w-5 h-5 stroke-[2.5]" />
+              ) : (
+                <MessageCircle className="w-5 h-5 fill-current" />
+              )}
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black uppercase tracking-tight text-white font-heading">
-                {isRTL ? 'إتمام وتأكيد الطلب' : 'Finaliser Votre Commande'}
+                {orderChannel === 'table'
+                  ? isRTL ? 'تأكيد طلب الطاولة' : 'Confirmer Commande à Table'
+                  : isRTL ? 'إتمام وتأكيد الطلب' : 'Finaliser Votre Commande'}
               </h2>
               <p className="text-xs text-gray-400">
                 {orderChannel === 'table'
@@ -687,49 +701,74 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
           {/* Submit Action Buttons */}
           <div className="space-y-2.5 pt-2">
-            <button
-              type="submit"
-              className="w-full py-4 px-4 rounded-2xl bg-[#FF6321] hover:brightness-110 text-black font-black uppercase tracking-tighter text-base shadow-[0_10px_20px_rgba(255,99,33,0.3)] flex items-center justify-center gap-2.5 transition-all duration-200 active:scale-98 cursor-pointer"
-            >
-              <MessageCircle className="w-5 h-5 fill-current" />
-              <span>
-                {orderChannel === 'table'
-                  ? isRTL
-                    ? `إرسال طلب طاولة ${tableNumber || '1'} عبر واتساب (${finalTotal} ${config.currency})`
-                    : `Commander à Table ${tableNumber || '1'} (${finalTotal} ${config.currency})`
-                  : isRTL
-                  ? `إرسال الطلب عبر واتساب (${finalTotal} ${config.currency})`
-                  : `Envoyer la Commande sur WhatsApp (${finalTotal} ${config.currency})`}
-              </span>
-            </button>
+            {orderChannel === 'table' ? (
+              /* TABLE ORDER: ONLY Direct Confirmation (NO WhatsApp) */
+              <>
+                <button
+                  type="submit"
+                  className="w-full py-4 px-4 rounded-2xl bg-[#FF6321] hover:brightness-110 text-black font-black uppercase tracking-tighter text-base shadow-[0_10px_20px_rgba(255,99,33,0.3)] flex items-center justify-center gap-2.5 transition-all duration-200 active:scale-98 cursor-pointer"
+                >
+                  <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
+                  <span>
+                    {isRTL
+                      ? `تأكيد الطلب للطاولة ${tableNumber || '1'} (${finalTotal} ${config.currency})`
+                      : `Confirmer la Commande (Table ${tableNumber || '1'}) (${finalTotal} ${config.currency})`}
+                  </span>
+                </button>
 
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={handleCopyMessage}
-                className="py-2.5 px-3 rounded-xl bg-[#1A1A1C] hover:bg-[#252527] border border-white/10 text-gray-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                {copied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-emerald-400">{isRTL ? 'تم نسخ النص !' : 'Texte copié !'}</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5 text-gray-400" />
-                    <span>{isRTL ? 'نسخ نص الطلب' : 'Copier le texte'}</span>
-                  </>
-                )}
-              </button>
+                <div className="p-3 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center gap-2 text-center text-xs text-gray-300">
+                  <Utensils className="w-4 h-4 text-[#FF6321] shrink-0" />
+                  <span>
+                    {isRTL
+                      ? `يتم إرسال الطلب فوراً إلى شاشة المطبخ ليتم تحضيره وتقديمه لطاولتكم رقم ${tableNumber || '1'}`
+                      : `Votre commande est envoyée directement en cuisine pour être servie à votre table N° ${tableNumber || '1'}`}
+                  </span>
+                </div>
+              </>
+            ) : (
+              /* ONLINE ORDER: Send and Follow via WhatsApp */
+              <>
+                <button
+                  type="submit"
+                  className="w-full py-4 px-4 rounded-2xl bg-[#FF6321] hover:brightness-110 text-black font-black uppercase tracking-tighter text-base shadow-[0_10px_20px_rgba(255,99,33,0.3)] flex items-center justify-center gap-2.5 transition-all duration-200 active:scale-98 cursor-pointer"
+                >
+                  <MessageCircle className="w-5 h-5 fill-current" />
+                  <span>
+                    {isRTL
+                      ? `إرسال ومتابعة الطلب عبر واتساب (${finalTotal} ${config.currency})`
+                      : `Envoyer et Suivre sur WhatsApp (${finalTotal} ${config.currency})`}
+                  </span>
+                </button>
 
-              <a
-                href={`tel:${config.phone}`}
-                className="py-2.5 px-3 rounded-xl bg-[#1A1A1C] hover:bg-[#252527] border border-white/10 text-gray-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
-              >
-                <Phone className="w-3.5 h-3.5 text-[#FF6321]" />
-                <span>{isRTL ? `اتصال: ${config.phone}` : `Appel : ${config.phone}`}</span>
-              </a>
-            </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyMessage}
+                    className="py-2.5 px-3 rounded-xl bg-[#1A1A1C] hover:bg-[#252527] border border-white/10 text-gray-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-400">{isRTL ? 'تم نسخ النص !' : 'Texte copié !'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-gray-400" />
+                        <span>{isRTL ? 'نسخ نص الطلب' : 'Copier le texte'}</span>
+                      </>
+                    )}
+                  </button>
+
+                  <a
+                    href={`tel:${config.phone}`}
+                    className="py-2.5 px-3 rounded-xl bg-[#1A1A1C] hover:bg-[#252527] border border-white/10 text-gray-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Phone className="w-3.5 h-3.5 text-[#FF6321]" />
+                    <span>{isRTL ? `اتصال: ${config.phone}` : `Appel : ${config.phone}`}</span>
+                  </a>
+                </div>
+              </>
+            )}
           </div>
         </form>
       </div>

@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useConfig } from '../context/ConfigContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useOrders } from '../context/OrderContext';
 import { PRODUCTS } from '../data/menuData';
 import {
   X,
@@ -31,6 +32,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onProceedToCheckout }) =
   } = useCart();
   const { config } = useConfig();
   const { isRTL } = useLanguage();
+  const { tableNumber } = useOrders();
 
   // Esc key listener & body lock
   useEffect(() => {
@@ -345,7 +347,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onProceedToCheckout }) =
                   {isRTL ? 'المجموع الفرعي :' : 'Sous-total :'}
                 </span>
                 <span className="text-[11px] text-gray-500">
-                  {isRTL ? 'التوصيل متاح لكافة أحياء الوادي' : 'Livraison disponible à El Oued'}
+                  {tableNumber
+                    ? isRTL ? `طلب مباشر داخل الصالة (طاولة ${tableNumber})` : `Service en salle (Table ${tableNumber})`
+                    : isRTL ? 'التوصيل متاح لكافة أحياء الوادي' : 'Livraison disponible à El Oued'}
                 </span>
               </div>
               <span className="font-black text-2xl text-[#FF6321] font-heading">
@@ -358,7 +362,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onProceedToCheckout }) =
               onClick={onProceedToCheckout}
               className="w-full py-4 px-5 rounded-2xl bg-[#FF6321] hover:brightness-110 text-black font-black uppercase tracking-tighter text-base shadow-[0_10px_20px_rgba(255,99,33,0.3)] flex items-center justify-center gap-2 transition-all duration-200 active:scale-98 cursor-pointer"
             >
-              <span>{isRTL ? 'متابعة الطلب عبر الواتساب' : 'Commander sur WhatsApp'}</span>
+              <span>
+                {tableNumber
+                  ? isRTL ? `تأكيد طلب طاولة ${tableNumber}` : `Confirmer la Commande (Table ${tableNumber})`
+                  : isRTL ? 'متابعة وإتمام الطلب' : 'Passer la commande'}
+              </span>
               <ArrowRight className={`w-4 h-4 stroke-[3] ${isRTL ? 'rotate-180' : ''}`} />
             </button>
           </div>

@@ -297,7 +297,7 @@ export const OrderTrackerModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Restaurant Contact Help */}
+          {/* Restaurant Contact / Help */}
           <div className="flex items-center justify-between gap-2 pt-1">
             <a
               href={`tel:${config.phone}`}
@@ -307,17 +307,29 @@ export const OrderTrackerModal: React.FC = () => {
               <span>{isRTL ? 'اتصال بالمطعم' : 'Appeler le restaurant'}</span>
             </a>
 
-            <a
-              href={`https://wa.me/${config.whatsappNumber}?text=${encodeURIComponent(
-                `Bonjour, je demande des nouvelles pour ma commande #${order.id}`
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 py-2.5 px-3 rounded-xl bg-[#1A1A1C] hover:bg-[#252527] text-gray-200 hover:text-white border border-white/5 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
-            >
-              <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{isRTL ? 'رسالة واتساب' : 'Message WhatsApp'}</span>
-            </a>
+            {/* ONLY show WhatsApp follow-up button for ONLINE orders. Table orders stay strictly inside the app/table! */}
+            {order.customerInfo.deliveryType === 'sur_place' ? (
+              <div className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-950/40 border border-emerald-800/40 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 text-center">
+                <UtensilsCrossed className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span>
+                  {isRTL
+                    ? `طلب طاولة ${order.customerInfo.tableNumber || '1'}`
+                    : `Service Table ${order.customerInfo.tableNumber || '1'}`}
+                </span>
+              </div>
+            ) : (
+              <a
+                href={`https://wa.me/${config.whatsappNumber}?text=${encodeURIComponent(
+                  `Bonjour, je demande des nouvelles pour ma commande #${order.id}`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 py-2.5 px-3 rounded-xl bg-[#1A1A1C] hover:bg-[#252527] text-gray-200 hover:text-white border border-white/5 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+              >
+                <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{isRTL ? 'متابعة عبر واتساب' : 'Suivi WhatsApp'}</span>
+              </a>
+            )}
           </div>
         </div>
       </div>

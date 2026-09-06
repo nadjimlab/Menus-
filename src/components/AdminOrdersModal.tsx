@@ -95,6 +95,8 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
 
   const { setIsManagerAuthenticated } = useManager();
 
+  const [showManagerDashboard, setShowManagerDashboard] = useState(false);
+
   useEffect(() => {
     // Restore session from localStorage if available
     const sessionStr = typeof window !== 'undefined' ? localStorage.getItem(STAFF_SESSION_STORAGE_KEY) : null;
@@ -165,10 +167,16 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
 
   if (!isOpen) return null;
 
-  if (isAuthenticated && isManagerMode) {
+  if (isAuthenticated && isManagerMode && showManagerDashboard) {
     return (
       <div className="fixed inset-0 z-50 flex flex-col bg-[#0A0A0B] animate-in fade-in duration-200">
-        <div className="flex justify-end p-2 bg-[#121214] border-b border-white/5">
+        <div className="flex justify-between items-center p-2 bg-[#121214] border-b border-white/5">
+          <button
+            onClick={() => setShowManagerDashboard(false)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1A1A1C] hover:bg-[#252527] text-white text-xs font-bold transition-colors cursor-pointer"
+          >
+            <span>{isRTL ? 'العودة للطلبات' : 'Retour aux commandes'}</span>
+          </button>
           <button
             onClick={() => { handleLogout(); onClose(); }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-950/50 hover:bg-red-900/60 text-red-400 text-xs font-bold transition-colors cursor-pointer"
@@ -353,70 +361,79 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
                 )}
               </button>
 
+              {/* 3. Product CRUD Manager */}
+              <button
+                onClick={() => setActiveTab('products')}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'products'
+                    ? 'bg-[#FF6321] text-black shadow-md'
+                    : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                <Utensils className="w-3.5 h-3.5" />
+                <span>{isRTL ? 'قائمة الطعام' : 'Menu & Plats'}</span>
+                <span className="opacity-70 text-[10px] hidden sm:inline">
+                  ({products.length})
+                </span>
+              </button>
+
+              {/* 4. Table QR Codes */}
+              <button
+                onClick={() => setActiveTab('qrcodes')}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                  activeTab === 'qrcodes'
+                    ? 'bg-[#FF6321] text-black shadow-md'
+                    : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                <QrCode className="w-3.5 h-3.5" />
+                <span>{isRTL ? 'QR الطاولات' : 'QR Tables'}</span>
+              </button>
+
+              {/* 5. Settings */}
               {isManagerMode && (
-                <>
-                  {/* 3. Product CRUD Manager */}
-                  <button
-                    onClick={() => setActiveTab('products')}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
-                      activeTab === 'products'
-                        ? 'bg-[#FF6321] text-black shadow-md'
-                        : 'text-gray-300 hover:text-white'
-                    }`}
-                  >
-                    <Utensils className="w-3.5 h-3.5" />
-                    <span>{isRTL ? 'قائمة الطعام' : 'Menu & Plats'}</span>
-                    <span className="opacity-70 text-[10px] hidden sm:inline">
-                      ({products.length})
-                    </span>
-                  </button>
-
-                  {/* 4. Table QR Codes */}
-                  <button
-                    onClick={() => setActiveTab('qrcodes')}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
-                      activeTab === 'qrcodes'
-                        ? 'bg-[#FF6321] text-black shadow-md'
-                        : 'text-gray-300 hover:text-white'
-                    }`}
-                  >
-                    <QrCode className="w-3.5 h-3.5" />
-                    <span>{isRTL ? 'QR الطاولات' : 'QR Tables'}</span>
-                  </button>
-
-                  {/* 5. Settings */}
-                  <button
-                    onClick={() => setActiveTab('settings')}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
-                      activeTab === 'settings'
-                        ? 'bg-[#FF6321] text-black shadow-md'
-                        : 'text-gray-300 hover:text-white'
-                    }`}
-                  >
-                    <Settings className="w-3.5 h-3.5" />
-                    <span>{isRTL ? 'الإعدادات' : 'Paramètres'}</span>
-                  </button>
-                </>
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer whitespace-nowrap ${
+                    activeTab === 'settings'
+                      ? 'bg-[#FF6321] text-black shadow-md'
+                      : 'text-gray-300 hover:text-white'
+                  }`}
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span>{isRTL ? 'الإعدادات' : 'Paramètres'}</span>
+                </button>
               )}
             </div>
 
-            {/* Lock / Logout session */}
-            <button
-              onClick={handleLogout}
-              title={isRTL ? 'قفل لوحة الإدارة' : 'Verrouiller la session'}
-              className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 rounded-xl bg-[#1A1A1C] hover:bg-red-950/60 hover:text-red-300 border border-white/5 text-gray-400 text-xs font-bold transition-all cursor-pointer shrink-0"
-            >
-              <Lock className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{isRTL ? 'قفل' : 'Verrouiller'}</span>
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {isManagerMode && (
+                <button
+                  onClick={() => setShowManagerDashboard(true)}
+                  className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all cursor-pointer shadow-md"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">{isRTL ? 'إدارة الموارد' : 'Dashboard RH'}</span>
+                </button>
+              )}
+              {/* Lock / Logout session */}
+              <button
+                onClick={handleLogout}
+                title={isRTL ? 'قفل لوحة الإدارة' : 'Verrouiller la session'}
+                className="flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 rounded-xl bg-[#1A1A1C] hover:bg-red-950/60 hover:text-red-300 border border-white/5 text-gray-400 text-xs font-bold transition-all cursor-pointer"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">{isRTL ? 'قفل' : 'Verrouiller'}</span>
+              </button>
 
-            <button
-              onClick={onClose}
-              aria-label="Fermer"
-              className="w-8 h-8 rounded-full bg-[#1A1A1C] hover:bg-[#252527] text-gray-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
-            >
-              <X className="w-4 h-4" />
-            </button>
+              <button
+                onClick={onClose}
+                aria-label="Fermer"
+                className="w-8 h-8 rounded-full bg-[#1A1A1C] hover:bg-[#252527] text-gray-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 

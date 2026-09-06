@@ -202,7 +202,6 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (supabase) {
       let active = true;
       const loadOrders = async () => {
-        const staffToken = typeof window !== 'undefined' ? localStorage.getItem(STAFF_SESSION_STORAGE_KEY) : null;
         if (staffToken) {
           try {
             const response = await fetch(`${SUPABASE_URL}/functions/v1/staff-orders`, { headers: { 'x-staff-session': staffToken } });
@@ -380,119 +379,10 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     // Supabase is the shared cross-device source when configured.
     if (!supabase) {
-      setDoc(doc(db, 'orders', orderId), newOrder).catch((err) =>
-        console.error('Failed to save order to Firestore:', err)
-      );
-    }
-    void saveOrderToSupabase(newOrder);
-    void syncOrderToApi(newOrder);
-
-    return newOrder;
-  };
-
-  const placeCaisseOrder = (orderData: {
-    customerName?: string;
-    customerPhone?: string;
-    deliveryType: 'sur_place' | 'a_emporter' | 'livraison';
-    tableNumber?: string;
-    items: OrderItemRecord[];
-    subtotal: number;
-    deliveryFee?: number;
-    total: number;
-    isPaid: boolean;
-    paymentMethod: 'cash' | 'baridimob' | 'carte';
-    cashReceived?: number;
-    changeGiven?: number;
-    notes?: string;
-  }): PlacedOrder => {
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const orderId = `CT-C${randomSuffix}`;
-    const fee = orderData.deliveryFee || 0;
-
-    const newOrder: PlacedOrder = {
-      id: orderId,
-      createdAt: new Date().toISOString(),
-      customerInfo: {
-        customerName: orderData.customerName || (orderData.deliveryType === 'sur_place' ? `Table ${orderData.tableNumber || '1'}` : 'Client Caisse'),
-        customerPhone: orderData.customerPhone || '',
-        deliveryType: orderData.deliveryType,
-        tableNumber: orderData.tableNumber,
-        deliveryAddress: orderData.deliveryType === 'sur_place' ? `Table ${orderData.tableNumber || '1'}` : 'Comptoir / Caisse',
-        notes: orderData.notes,
-      },
-      items: orderData.items,
-      subtotal: orderData.subtotal,
-      deliveryFee: fee,
-      total: orderData.total,
-      status: 'preparing', // Directly into preparing since cashier took it
-      estimatedMinutes: 10,
-      isPaid: orderData.isPaid,
-      paymentMethod: orderData.paymentMethod,
-      cashReceived: orderData.cashReceived,
-      changeGiven: orderData.changeGiven,
-      paidAt: orderData.isPaid ? new Date().toISOString() : undefined,
-      source: 'caisse',
-    };
-
-    const updated = [newOrder, ...orders];
-    setOrders(updated);
-    soundFx.playNewOrderNotification();
-
-    if (!supabase) {
-      setDoc(doc(db, 'orders', orderId), newOrder).catch((err) =>
-        console.error('Failed to save caisse order to Firestore:', err)
-      );
-    }
-    void saveOrderToSupabase(newOrder);
-    void syncOrderToApi(newOrder);
-
-    return newOrder;
-  };
-
-  const markOrderPaid = (
-    orderId: string,
-    paymentMethod: 'cash' | 'baridimob' | 'carte',
-    cashReceived?: number,
-    changeGiven?: number
-  ) => {
-    const updated = orders.map((o) => {
-      if (o.id === orderId) {
-        return {
-          ...o,
-          isPaid: true,
-          paymentMethod,
-          cashReceived: cashReceived !== undefined ? cashReceived : o.total,
-          changeGiven: changeGiven !== undefined ? changeGiven : 0,
-          paidAt: new Date().toISOString(),
-        };
-      }
-      return o;
-    });
-
-    setOrders(updated);
-
-    const paymentUpdates = {
-      isPaid: true,
-      paymentMethod,
-      cashReceived: cashReceived !== undefined ? cashReceived : null,
-      changeGiven: changeGiven !== undefined ? changeGiven : null,
-      paidAt: new Date().toISOString(),
-    };
-    if (!supabase) {
-      updateDoc(doc(db, 'orders', orderId), paymentUpdates).catch((err) => console.error('Failed to update order payment in Firestore:', err));
-    }
-    const staffToken = typeof window !== 'undefined' ? localStorage.getItem(STAFF_SESSION_STORAGE_KEY) : null;
-    if (staffToken && SUPABASE_URL) {
-      void fetch(`${SUPABASE_URL}/functions/v1/staff-orders`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'x-staff-session': staffToken },
-        body: JSON.stringify({ orderId, isPaid: true, paymentMethod, cashReceived: paymentUpdates.cashReceived, changeGiven: paymentUpdates.changeGiven, paidAt: paymentUpdates.paidAt }),
-      }).then(async (response) => {
-        if (!response.ok) console.error('Staff payment update failed:', await response.text());
-      }).catch((error) => console.error('Staff payment request failed:', error));
-    } else if (supabase) {
-      void supabase.from('orders').update({ is_paid: true, payment_method: paymentMethod, cash_received: paymentUpdates.cashReceived, change_given: paymentUpdates.changeGiven, paid_at: paymentUpdates.paidAt }).eq('id', orderId).then(({ error }) => {
-        if (error) console.error('Supabase payment update failed:', error.message);
+      updateDoc(doc(db, 'orders', orderId), { status, statusUpdatedAt: statusUpdates.statusUpdatedAt, estimatedMinutes: statusUpdates.estimatedMinutes }).catch((err) => console.error('Failed to update order status in Firestore:', err));
+    } else {
+      void supabase.from('orders').update({ status, status_updated_at: statusUpdates.statusUpdatedAt, estimated_minutes: statusUpdates.estimatedMinutes }).eq('id', orderId).then(({ error }) => {
+        if (error) console.error('Supabase status update failed:', error.message);
       });
     }
     void syncOrderPatchToApi(orderId, {
@@ -526,17 +416,7 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
     if (!supabase) {
       updateDoc(doc(db, 'orders', orderId), { status, statusUpdatedAt: statusUpdates.statusUpdatedAt, estimatedMinutes: statusUpdates.estimatedMinutes }).catch((err) => console.error('Failed to update order status in Firestore:', err));
-    }
-    const staffToken = typeof window !== 'undefined' ? localStorage.getItem(STAFF_SESSION_STORAGE_KEY) : null;
-    if (staffToken && SUPABASE_URL) {
-      void fetch(`${SUPABASE_URL}/functions/v1/staff-orders`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'x-staff-session': staffToken },
-        body: JSON.stringify({ orderId, status }),
-      }).then(async (response) => {
-        if (!response.ok) console.error('Staff order status update failed:', await response.text());
-      }).catch((error) => console.error('Staff order status request failed:', error));
-    } else if (supabase) {
+    } else {
       void supabase.from('orders').update({ status, status_updated_at: statusUpdates.statusUpdatedAt, estimated_minutes: statusUpdates.estimatedMinutes }).eq('id', orderId).then(({ error }) => {
         if (error) console.error('Supabase status update failed:', error.message);
       });

@@ -11,7 +11,6 @@ import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { TableBanner } from './components/TableBanner';
 import { MoodSelector } from './components/MoodSelector';
-import { CategoryNav } from './components/CategoryNav';
 import { FilterBar, SubFilterType } from './components/FilterBar';
 import { ProductCard } from './components/ProductCard';
 import { ProductModal } from './components/ProductModal';
@@ -151,25 +150,6 @@ const MenuAppContent: React.FC = () => {
     });
   }, [products, activeCategory, activeMoodId, activeSubFilter]);
 
-  // Counts per category for badge indicators
-  const categoryCounts = useMemo(() => {
-    const counts: Record<CategoryId, number> = {
-      all: products.length,
-      tacos: 0,
-      burgers: 0,
-      sandwiches: 0,
-      pizza: 0,
-      plats: 0,
-      boissons: 0,
-    };
-    products.forEach((p) => {
-      if (counts[p.categoryId] !== undefined) {
-        counts[p.categoryId]++;
-      }
-    });
-    return counts;
-  }, [products]);
-
   return (
     <div className={`min-h-screen bg-[#0A0A0B] text-white flex flex-col selection:bg-[#FF6321] selection:text-black ${isRTL ? 'font-sans' : ''}`}>
       {/* Header Navigation */}
@@ -221,13 +201,6 @@ const MenuAppContent: React.FC = () => {
         <MoodSelector
           selectedMoodId={activeMoodId}
           onSelectMood={(moodId) => setActiveMoodId(moodId)}
-        />
-
-        {/* Category Navigation Pills (Sticky below Header) */}
-        <CategoryNav
-          activeCategory={activeCategory}
-          onSelectCategory={(catId) => setActiveCategory(catId)}
-          categoryCounts={categoryCounts}
         />
 
         {/* Secondary Sub-filters Bar */}

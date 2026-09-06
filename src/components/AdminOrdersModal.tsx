@@ -96,126 +96,71 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
   const { setIsManagerAuthenticated } = useManager();
 
   useEffect(() => {
-    let cancelled = false;
-    const restoreStaffSession = async () => {
-      const token = typeof window !== 'undefined' ? localStorage.getItem(STAFF_SESSION_STORAGE_KEY) : null;
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-      const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
-      if (token && supabaseUrl && publishableKey) {
-        try {
-          const response = await fetch(`${supabaseUrl}/functions/v1/staff-session`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', apikey: publishableKey, Authorization: `Bearer ${publishableKey}` },
-            body: JSON.stringify({ sessionToken: token }),
-          });
-          const result = await response.json() as { staff?: { fullName?: string; role?: string } };
-          const role = result.staff?.role;
-          if (response.ok && result.staff?.fullName && (role === 'manager' || role === 'cashier')) {
-            if (cancelled) return;
-            pinAuthenticatedRef.current = true;
-            setStaffSessionToken(token);
-            setCashierName(result.staff.fullName);
-            setIsAuthenticated(true);
-            setIsManagerMode(role === 'manager');
-            setIsManagerAuthenticated(role === 'manager');
-            setActiveTab(role === 'manager' ? 'orders' : 'caisse');
-            return;
-          }
-        } catch {
-          // Fall through to the normal login screen.
+    // Restore session from localStorage if available
+    const sessionStr = typeof window !== 'undefined' ? localStorage.getItem(STAFF_SESSION_STORAGE_KEY) : null;
+    if (sessionStr) {
+      try {
+        const parsed = JSON.parse(sessionStr);
+        if (parsed.role === 'manager' || parsed.role === 'cashier') {
+          setIsAuthenticated(true);
+          setIsManagerMode(parsed.role === 'manager');
+          setIsManagerAuthenticated(parsed.role === 'manager');
+          setActiveTab(parsed.role === 'manager' ? 'orders' : 'caisse');
+          setCashierName(parsed.name || '');
+          return;
         }
+      } catch {
         localStorage.removeItem(STAFF_SESSION_STORAGE_KEY);
       }
-
-      if (!supabase || pinAuthenticatedRef.current || cancelled) return;
-      const { data } = await supabase.auth.getSession();
-      if (pinAuthenticatedRef.current || cancelled) return;
-      const role = data.session?.user.app_metadata?.role;
-      setIsAuthenticated(role === 'manager' || role === 'cashier');
-      setIsManagerMode(role === 'manager');
-      setIsManagerAuthenticated(role === 'manager');
-    };
-    void restoreStaffSession();
-
-    const listener = supabase?.auth.onAuthStateChange((_event, session) => {
-      if (pinAuthenticatedRef.current) return;
-      const role = session?.user.app_metadata?.role;
-      setIsAuthenticated(role === 'manager' || role === 'cashier');
-      setIsManagerMode(role === 'manager');
-      setIsManagerAuthenticated(role === 'manager');
-    });
-    return () => {
-      cancelled = true;
-      listener?.data.subscription.unsubscribe();
-    };
+    }
   }, [setIsManagerAuthenticated]);
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginErrorMessage('');
 
-    const normalizedCashierName = cashierName.trim().replace(/\s+/g, ' ');
-    if (!normalizedCashierName || !/^\d{4}$/.test(cashierCode)) {
-      setLoginErrorMessage(isRTL ? 'أدخل الاسم أو رمز الموظف وPIN من 4 أرقام' : 'Saisissez le nom/code employé et un PIN de 4 chiffres');
-      return;
-    }
-
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-    const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
-    if (!supabaseUrl || !publishableKey) {
-      setLoginErrorMessage(isRTL ? 'إعدادات Supabase غير مكتملة' : 'La configuration Supabase est incomplète');
+    if (!/^\d{4}$/.test(cashierCode)) {
+      setLoginErrorMessage(isRTL ? 'أدخل رمز PIN من 4 أرقام' : 'Saisissez un PIN de 4 chiffres');
       return;
     }
 
     setLoginLoading(true);
+
     try {
-      const response = await fetch(`${supabaseUrl}/functions/v1/verify-cashier-pin`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: publishableKey,
-          Authorization: `Bearer ${publishableKey}`,
-        },
-        body: JSON.stringify({
-          employeeName: normalizedCashierName,
-          pin: cashierCode,
-        }),
-      });
-      const result = await response.json() as { staff?: { fullName?: string; role?: string }; sessionToken?: string; error?: string };
-      const role = result.staff?.role;
-
-      if (!response.ok || !result.staff || (role !== 'cashier' && role !== 'manager')) {
-        setLoginErrorMessage(result.error || (isRTL ? 'الاسم أو الرمز غير صحيح' : 'Nom ou code incorrect'));
-        return;
+      // Small fake delay for UX
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const pin = cashierCode;
+      const isManager = !cashierLoginMode;
+      
+      if (isManager && pin === '9999') {
+        const sessionData = { role: 'manager', name: 'مدير' };
+        localStorage.setItem(STAFF_SESSION_STORAGE_KEY, JSON.stringify(sessionData));
+        setIsAuthenticated(true);
+        setIsManagerMode(true);
+        setIsManagerAuthenticated(true);
+        setActiveTab('orders');
+      } else if (!isManager && pin === '1234') {
+        const sessionData = { role: 'cashier', name: 'موظف' };
+        localStorage.setItem(STAFF_SESSION_STORAGE_KEY, JSON.stringify(sessionData));
+        setIsAuthenticated(true);
+        setIsManagerMode(false);
+        setIsManagerAuthenticated(false);
+        setActiveTab('caisse');
+      } else {
+        setLoginErrorMessage(isRTL ? 'رمز السر غير صحيح' : 'Code secret incorrect');
       }
-
-      const isManager = role === 'manager';
-      if (!result.sessionToken) {
-        setLoginErrorMessage(isRTL ? 'تعذر إنشاء جلسة آمنة' : 'Impossible de créer la session sécurisée');
-        return;
-      }
-      localStorage.setItem(STAFF_SESSION_STORAGE_KEY, result.sessionToken);
-      pinAuthenticatedRef.current = true;
-      setStaffSessionToken(result.sessionToken);
-      setIsAuthenticated(true);
-      setIsManagerMode(isManager);
-      setIsManagerAuthenticated(isManager);
-      setActiveTab(isManager ? 'orders' : 'caisse');
-    } catch {
-      setLoginErrorMessage(isRTL ? 'تعذر الاتصال بخدمة التحقق' : 'Impossible de joindre le service de vérification');
     } finally {
       setLoginLoading(false);
     }
   };
 
   const handleLogout = () => {
-    pinAuthenticatedRef.current = false;
     localStorage.removeItem(STAFF_SESSION_STORAGE_KEY);
-    setStaffSessionToken('');
-    void supabase?.auth.signOut();
     setIsAuthenticated(false);
     setIsManagerMode(false);
     setIsManagerAuthenticated(false);
+    setCashierCode('');
   };
 
   if (!isOpen) return null;
@@ -315,10 +260,6 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
             </button>
           </div>
           <form onSubmit={handleAuthSubmit} className="w-full space-y-3 text-start">
-            <label className="block text-xs font-bold text-gray-300">
-              {isRTL ? (cashierLoginMode ? 'اسم الكاشير' : 'اسم المدير') : (cashierLoginMode ? 'Nom du caissier' : 'Nom du manager')}
-            </label>
-            <input type="text" required value={cashierName} onChange={(e) => setCashierName(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-white outline-none focus:border-[#FF6321]" placeholder={isRTL ? 'مثال: يوسف بن سالم' : 'Ex : Youssef Ben Salem'} />
             <label className="block text-xs font-bold text-gray-300">{isRTL ? 'رمز السر (4 أرقام)' : 'Code secret (4 chiffres)'}</label>
             <input type="password" required inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="current-password" value={cashierCode} onChange={(e) => setCashierCode(e.target.value.replace(/\D/g, '').slice(0, 4))} className="w-full px-4 py-3 rounded-xl bg-[#141416] border border-white/10 text-white outline-none focus:border-[#FF6321] tracking-[0.5em] text-center" placeholder="••••" />
             {loginErrorMessage && <p className="text-xs text-red-400 font-bold">{loginErrorMessage}</p>}

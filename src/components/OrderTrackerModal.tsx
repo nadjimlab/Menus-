@@ -138,7 +138,7 @@ export const OrderTrackerModal: React.FC = () => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-lg bg-[#0F0F10] border border-white/10 rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-lg bg-[#0F0F10] border border-white/10 rounded-3xl shadow-2xl flex flex-col max-h-[92dvh] overflow-hidden animate-in zoom-in-95 duration-200"
       >
         {/* Top Header */}
         <div className="p-4 sm:p-5 border-b border-white/5 bg-[#141416] flex items-center justify-between">
@@ -228,10 +228,12 @@ export const OrderTrackerModal: React.FC = () => {
 
                 return (
                   <div key={step.id} className="flex items-start gap-3 relative">
-                    {/* Connecting vertical line */}
+                    {/* Connecting vertical line - correctly positioned in RTL and LTR */}
                     {idx < steps.length - 1 && (
                       <div
-                        className={`absolute left-[17px] top-8 bottom-[-8px] w-0.5 ${
+                        className={`absolute ${
+                          isRTL ? 'right-[17px]' : 'left-[17px]'
+                        } top-8 bottom-[-8px] w-0.5 ${
                           state === 'completed' ? 'bg-[#FF6321]' : 'bg-white/10'
                         }`}
                       />
@@ -251,8 +253,8 @@ export const OrderTrackerModal: React.FC = () => {
                     </div>
 
                     {/* Step details */}
-                    <div className="flex-1 pt-0.5">
-                      <div className="flex items-center justify-between">
+                    <div className="flex-1 pt-0.5 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span
                           className={`text-xs sm:text-sm font-bold font-heading ${
                             state === 'current'
@@ -265,8 +267,9 @@ export const OrderTrackerModal: React.FC = () => {
                           {isRTL ? step.titleAr : step.titleFr}
                         </span>
                         {state === 'current' && (
-                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-[#FF6321]/20 text-[#FF6321]">
-                            {isRTL ? 'الآن' : 'En cours'}
+                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-[#FF6321]/20 text-[#FF6321] border border-[#FF6321]/30 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#FF6321] animate-pulse" />
+                            <span>{isRTL ? 'الآن' : 'En cours'}</span>
                           </span>
                         )}
                       </div>

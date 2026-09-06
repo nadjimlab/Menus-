@@ -199,6 +199,8 @@ export const OrderProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    const staffToken = localStorage.getItem(STAFF_SESSION_STORAGE_KEY);
+
     if (supabase) {
       let active = true;
       const loadOrders = async () => {

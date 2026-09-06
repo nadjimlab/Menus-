@@ -517,7 +517,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({
             </div>
 
             {/* Products Grid */}
-            <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5 auto-rows-max content-start">
+            <div className="flex-1 min-h-0 overflow-y-auto p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2.5 auto-rows-max content-start">
               {availableProducts.map((prod) => (
                 <button
                   key={prod.id}
@@ -700,7 +700,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({
             </div>
 
             {/* Ticket Items List */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
               {ticketItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full py-12 text-center text-gray-500">
                   <Receipt className="w-10 h-10 stroke-1 text-gray-600 mb-2" />
@@ -757,7 +757,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({
             </div>
 
             {/* Payment & Cash Change Calculator */}
-            <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-white/5 bg-[#141416] shrink-0 space-y-3 max-h-[52dvh] overflow-y-auto overscroll-contain md:max-h-none md:overflow-visible">
+            <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-white/5 bg-[#141416] shrink-0 space-y-3 max-h-[52dvh] overflow-y-auto overscroll-contain md:max-h-[40dvh]">
               {/* Subtotal & Total */}
               <div className="space-y-1 text-xs">
                 <div className="flex justify-between text-gray-400">
@@ -928,7 +928,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({
 
       {/* TAB 2: UNPAID ORDERS WAITING FOR SETTLEMENT */}
       {caisseTab === 'unpaid' && (
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-sm font-black uppercase text-white font-heading">
               {isRTL ? 'طلبات في انتظار الدفع والتحصيل' : 'Commandes en Attente de Paiement'} ({unpaidOrders.length})
@@ -1006,7 +1006,7 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({
 
       {/* TAB 3: DAILY CAISSE SUMMARY & HISTORY */}
       {caisseTab === 'history' && (
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
           <div className="p-4 rounded-3xl bg-[#141416] border border-white/5 flex flex-wrap items-center justify-between gap-4">
             <div>
               <h4 className="text-base font-black uppercase text-white font-heading">

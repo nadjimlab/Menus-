@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Phone, Search, Menu as MenuIcon, X, MapPin, Gamepad2, Clock, Globe, BellRing, Bell } from 'lucide-react';
+import { ShoppingBag, Phone, Search, MapPin, Gamepad2, Clock, Globe, BellRing, Bell } from 'lucide-react';
 import { MustacheLogo } from './MustacheLogo';
 import { useCart } from '../context/CartContext';
 import { useConfig } from '../context/ConfigContext';
@@ -21,7 +21,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, onOpenAdmin }) => 
   } = useOrders();
 
   const [scrolled, setScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -32,7 +31,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, onOpenAdmin }) => 
   }, []);
 
   const scrollToSection = (id: string) => {
-    setMobileMenuOpen(false);
     const element = document.getElementById(id);
     if (element) {
       const yOffset = -80;
@@ -173,73 +171,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenSearch, onOpenAdmin }) => 
               )}
             </button>
 
-            {/* Mobile Hamburger Toggle */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Ouvrir le menu"
-              className="lg:hidden w-8 h-8 rounded-full bg-[#1A1A1C] border border-white/10 flex items-center justify-center text-gray-300 hover:text-white"
-            >
-              {mobileMenuOpen ? <X className="w-4 h-4" /> : <MenuIcon className="w-4 h-4" />}
-            </button>
+
           </div>
         </div>
 
-        {/* Mobile Dropdown Navigation */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden mt-3 p-4 bg-[#0F0F10]/98 border border-white/10 rounded-2xl backdrop-blur-2xl shadow-2xl flex flex-col gap-2 animate-in fade-in slide-in-from-top-3 duration-200">
-            <button
-              onClick={() => scrollToSection('hero')}
-              className="w-full text-left px-4 py-2.5 text-sm font-bold text-[#FF6321] hover:bg-[#1A1A1C] rounded-xl"
-            >
-              🏠 {isRTL ? 'الرئيسية' : 'Accueil'}
-            </button>
-            <button
-              onClick={() => scrollToSection('menu-section')}
-              className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#1A1A1C] rounded-xl"
-            >
-              🌮 {isRTL ? 'قائمة الطعام' : 'Notre Menu Complet'}
-            </button>
-            <button
-              onClick={() => scrollToSection('concept-section')}
-              className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#1A1A1C] rounded-xl"
-            >
-              👨‍🍳 {isRTL ? 'عن المطعم' : "L'Expérience Cheneb"}
-            </button>
-            <button
-              onClick={() => scrollToSection('contact-section')}
-              className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-200 hover:bg-[#1A1A1C] rounded-xl"
-            >
-              📍 {isRTL ? 'الموقع والتواصل' : 'Localisation & Contact'}
-            </button>
 
-            {onOpenAdmin && (
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenAdmin();
-                }}
-                className="w-full text-left px-4 py-2.5 text-xs font-bold text-gray-300 hover:text-white bg-[#141416] hover:bg-[#1A1A1C] border border-white/5 rounded-xl flex items-center justify-between"
-              >
-                <span>{isRTL ? '🔐 فضاء الإدارة والمطبخ' : '🔐 Espace Staff & Cuisine'}</span>
-                <span className="text-[10px] text-emerald-400 font-bold bg-emerald-400/10 px-2 py-0.5 rounded-md">{isRTL ? 'جلسة آمنة' : 'Session sécurisée'}</span>
-              </button>
-            )}
-
-            <div className="pt-2 mt-2 border-t border-white/10 flex flex-col gap-2">
-              <a
-                href={`tel:${config.phone}`}
-                className="flex items-center justify-center gap-2 py-2.5 bg-[#1A1A1C] text-white text-sm font-bold rounded-xl border border-white/5"
-              >
-                <Phone className="w-4 h-4 text-[#FF6321]" />
-                <span>{config.phone}</span>
-              </a>
-              <div className="flex items-center justify-center gap-2 text-xs text-gray-400 py-1">
-                <MapPin className="w-3.5 h-3.5 text-[#FF6321]" />
-                <span>{config.wilaya}</span>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </header>
   );

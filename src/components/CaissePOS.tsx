@@ -96,13 +96,13 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({
   // Filter products for POS
   const availableProducts = useMemo(() => {
     return products.filter((p) => {
-      const matchesCat = posCategory === 'all' || p.category === posCategory;
+      const matchesCat = posCategory === 'all' || p.categoryId === posCategory;
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
         !q ||
         p.nameFr.toLowerCase().includes(q) ||
         p.nameAr.includes(q) ||
-        (p.category && p.category.toLowerCase().includes(q));
+        (p.categoryId && p.categoryId.toLowerCase().includes(q));
       return matchesCat && matchesSearch;
     });
   }, [products, posCategory, searchQuery]);

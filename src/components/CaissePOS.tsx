@@ -96,13 +96,13 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({
   // Filter products for POS
   const availableProducts = useMemo(() => {
     return products.filter((p) => {
-      const matchesCat = posCategory === 'all' || p.categoryId === posCategory;
+      const matchesCat = posCategory === 'all' || p.category === posCategory;
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
         !q ||
         p.nameFr.toLowerCase().includes(q) ||
         p.nameAr.includes(q) ||
-        p.categoryId.toLowerCase().includes(q);
+        (p.category && p.category.toLowerCase().includes(q));
       return matchesCat && matchesSearch;
     });
   }, [products, posCategory, searchQuery]);
@@ -1457,6 +1457,15 @@ export const CaissePOS: React.FC<CaissePOSProps> = ({
               <p className="font-bold">Merci de votre visite et Saha Ftourkoum !</p>
               <p>الأصالة والبنة عند الشنب طاكوس</p>
               <p className="text-[9px]">www.cheneb-tacos.dz</p>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-neutral-200 print-hidden print:hidden">
+              <button
+                onClick={() => setActiveTicketOrderForReceipt(null)}
+                className="w-full py-2.5 rounded-xl bg-[#FF6321] text-black font-black text-sm hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+              >
+                {isRTL ? 'طلب جديد' : 'Nouvelle Commande'}
+              </button>
             </div>
           </div>
         </div>

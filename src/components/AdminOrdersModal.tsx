@@ -807,7 +807,6 @@ export const AdminOrdersModal: React.FC<AdminOrdersModalProps> = ({ isOpen, onCl
           <CaissePOS
             ticketItems={caisseTicketItems}
             onTicketItemsChange={setCaisseTicketItems}
-            onOrderPlaced={() => setActiveTab('orders')}
           />
         </div>
 
